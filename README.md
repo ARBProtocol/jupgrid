@@ -27,8 +27,10 @@ Breakdown of Operation:
 - Token A - This is the ticker for the BASE token you wish to trade. This is used for pricing. Recommend you use USDC or SOL here, makes use far easier. (USDC, SOL, etc)
 - Token B - This is the ticker for the token you wish to trade for. This cannot be the same as Token A. (SOL, Bonk, JUP, ARB, etc)
 - Size - This number is relative to Token A only. For example, Token A is USDC. Entering a size of 10 will create trades for $10 (both buys and sells, Sell enough Token B to be worth $10, or spend $10 buying Token B)
+- Recommended to have at least 10-15x your size in available currencies (both TokenA and TokenB), so that if the market trends one way for a while, you will continue to be able to place orders.
+- Recommended you have as close to equal $ value of both tokens available in your wallet.
 - Spread - Spread is measured in %. The distance from the current market price (taken at bot init) to your buy OR your sell is the spread, so if you wish to place market orders 1% away from current price, enter 1 for example. 1 = 1%, 0.5 = 0.5%.
-- Jupiter takes 0.1% of each trade, so to ensure you remain profitable, > 0.3 % is recommended.
+- Jupiter takes 0.1% of each trade, so to ensure you remain profitable, > 0.5 % is recommended.
 - Try not to place the spread too tight. This is the Alpha version, and it isnt as fast as it could be, resulting in orders being filled before the bot is ready to monitor them. If this happens, you will see constant "Recalculating Orders".
 
 Thank you VERY much for reading this, and hopefully trying my bot.
