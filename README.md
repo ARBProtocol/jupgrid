@@ -14,7 +14,7 @@ Jupiter does charge 0.1% of your order value, per order however.
 
 Initializing the bot:
 ```
-yarn install
+npm install
 
 node jupgrid.js
 ```
