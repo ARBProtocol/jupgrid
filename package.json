@@ -2,7 +2,7 @@
 	"name": "jup-grid",
 	"version": "0.0.0",
 	"description": "JupGrid",
-	"main": "jupgrid.js",
+	"main": "src/jupgrid.js",
 	"author": {
 		"name": "SpuddyA7X - @SpuddyA7X"
 	},
