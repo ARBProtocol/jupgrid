@@ -1,4 +1,3 @@
-// Import statements
 const solanaWeb3 = require("@solana/web3.js");
 const { Connection, Keypair } = solanaWeb3;
 const { ownerFilter, LimitOrderProvider } = require("@jup-ag/limit-order-sdk");
@@ -11,14 +10,9 @@ const fsp = require("fs").promises;
 const readline = require("readline");
 const dotenv = require("dotenv");
 
-const envFilePath = ".env";
-const defaultEnvContent = `# Please fill in the following environment variables
-RPC_URL=
-PRIVATE_KEY=
-`;
-
-// Check for the .env file, create if not exists
-function ensureEnvFileExistsSync() {
+function envload() {
+	const envFilePath = ".env";
+	const defaultEnvContent = `# Please fill in the following environment variables\nRPC_URL\nPRIVATE_KEY=`;
 	try {
 		if (!fs.existsSync(envFilePath)) {
 			fs.writeFileSync(envFilePath, defaultEnvContent, "utf8");
@@ -35,17 +29,7 @@ function ensureEnvFileExistsSync() {
 		);
 		process.exit(1);
 	}
-}
-
-ensureEnvFileExistsSync();
-
-// Load environment variables after ensuring .env file exists
-dotenv.config();
-
-let wallet, rpcUrl;
-
-// Function to initialize wallet and rpcUrl
-function initializeGlobalVariables() {
+	dotenv.config();
 	if (!process.env.PRIVATE_KEY || !process.env.RPC_URL) {
 		console.error(
 			"Missing required environment variables in .env file. Please ensure PRIVATE_KEY and RPC_URL are set.",
@@ -53,14 +37,17 @@ function initializeGlobalVariables() {
 		process.exit(1);
 	}
 
-	wallet = new Wallet(
-		solanaWeb3.Keypair.fromSecretKey(bs58.decode(process.env.PRIVATE_KEY)),
-	);
-	rpcUrl = process.env.RPC_URL;
+	return [
+		new Wallet(
+			solanaWeb3.Keypair.fromSecretKey(
+				bs58.decode(process.env.PRIVATE_KEY),
+			),
+		),
+		process.env.RPC_URL,
+	];
 }
 
-// Call the function to initialize wallet and rpcUrl
-initializeGlobalVariables();
+let [wallet, rpcUrl] = envload();
 
 const connection = new Connection(rpcUrl, "confirmed", {
 	commitment: "confirmed",
