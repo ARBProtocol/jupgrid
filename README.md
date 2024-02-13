@@ -8,35 +8,35 @@ Jupgrid is a cutting-edge, fully decentralized cryptocurrency grid trading bot d
 
 ## Table of Contents
 
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
+-   [Features](#features)
+-   [Installation](#installation)
+-   [Usage](#usage)
+-   [Configuration](#configuration)
+-   [Contributing](#contributing)
+-   [License](#license)
 
 ## Features ✨
 
-- **Fully Decentralized Trading:** Operates on the Jupiter Limit Order Book, ensuring full control over your trading data and strategy.
-[Jupiter Limit Order Book](https://jup.ag/limit/SOL-USDC)
-- **Local Operation:** Runs on your own machine, providing an additional layer of security and privacy.
-- **Simple Grid Strategy:** Places one buy order and one sell order based on user-defined parameters, optimizing for market conditions.
-- **Easy Setup:** Comes with a straightforward installation and setup process, including auto-creation of necessary user files.
-- **User Prompted Parameters:** Dynamically prompts the user for trading parameters, allowing for flexible and responsive trading setups.
+-   **Fully Decentralized Trading:** Operates on the Jupiter Limit Order Book, ensuring full control over your trading data and strategy.
+    [Jupiter Limit Order Book](https://jup.ag/limit/SOL-USDC)
+-   **Local Operation:** Runs on your own machine, providing an additional layer of security and privacy.
+-   **Simple Grid Strategy:** Places one buy order and one sell order based on user-defined parameters, optimizing for market conditions.
+-   **Easy Setup:** Comes with a straightforward installation and setup process, including auto-creation of necessary user files.
+-   **User Prompted Parameters:** Dynamically prompts the user for trading parameters, allowing for flexible and responsive trading setups.
 
 ## Installation 🔧
 
-Install Jupgrid with npm:
+Download the source code by cloning it:
 
-```
-npm install -g @spuddya7x/jupgrid
+```bash
+git clone https://github.com/SpuddyA7X/jupgrid
 ```
 
 ## Usage 🚀
 
 1. **Initial Setup:** Run Jupgrid for the first time to create the necessary user configuration files:
 
-```
+```bash
     node .
 ```
 
@@ -45,23 +45,22 @@ This will generate a `.env` file where you will fill in your secure data.
 2. **Configuration:** Open the `.env` file in a text editor and input your Phantom wallet Private Key, and the URL to your RPC.
 
 3. **Run Jupgrid:** Start Jupgrid again with `node .` to launch the bot. Upon startup, you will be prompted to enter the following parameters:
-   
+
     - Token A:
     - Token B:
     - Size (In Token A):
     - Spread (% difference from current market price to orders):
 
-   Jupgrid will then place one buy and one sell order based on the parameters you have set.
+    Jupgrid will then place one buy and one sell order based on the parameters you have set.
 
 ## Configuration ⚙️
 
 The `.env` file will need to contain your API keys and other sensitive information. Ensure you fill it out before running the bot for the second time:
 
-- `RPC_URL`=YourRPCURLHere
-- `PRIVATE_KEY`=YourPrivateKeyHere
-- `Other configurations as necessary`
+-   `RPC_URL`=YourRPCURLHere
+-   `PRIVATE_KEY`=YourPrivateKeyHere
 
-There will also be a `userData` file created. This will contain data on the parameters you set during setup.
+There will also be a `userData.json` file created. This will contain data on the parameters you set during setup.
 
 ## Contributing 🤝
 
@@ -75,6 +74,7 @@ We welcome contributions from everyone! To contribute:
 6. ❤️
 
 ####Follow me on Twitter: [@SpuddyA7X](https://twitter.com/SpuddyA7X) for more updates and other projects.
+
 ## License 📄
 
 This project is licensed under the MIT License - see the `LICENSE` file for details.
