@@ -162,16 +162,7 @@ async function loadUserData() {
 		console.log(`Spread: ${spread}`);
 	} catch (error) {
 		console.log("No user data found. Starting with fresh inputs.");
-		// Create a new userData object with default values
-		const defaultUserData = {
-			selectedTokenA: null,
-			selectedTokenB: null,
-			tradeSize: null,
-			spread: null,
-		};
-		// Save the default user data to userData.json
-		await fsp.writeFile("userData.json", JSON.stringify(defaultUserData));
-		console.log("New user data file created.");
+		initialize();
 	}
 }
 
@@ -189,6 +180,7 @@ async function loadQuestion() {
 		console.log("");
 
 		if (!fs.existsSync("userData.json")) {
+			console.log("No user data found. Starting with fresh inputs.");
 			initialize();
 			return;
 		}
