@@ -71,54 +71,46 @@ function questionAsync(question) {
 let shutDown = false;
 
 const quoteurl = "https://quote-api.jup.ag/v6/quote";
-let validTokenA = null;
-let validTokenB = null;
-
-let selectedTokenA = null;
-let selectedTokenB = null;
-
-let selectedAddressA = null;
-let selectedAddressB = null;
-
-let selectedDecimalsA = null;
-let selectedDecimalsB = null;
-
-let validTradeSize = false;
-let tradeSize = null;
-let tradeSizeInLamports = null;
-let validSpread = null;
-
-let loaded = false;
-let openOrders = [];
-let checkArray = [];
-const txArray = new Set();
-
-let tokens = [];
-let newPrice = null;
-let startPrice = null;
-let spread = null;
-let spreadbps = null;
-
-let buyInput = null;
-let buyOutput = null;
-let sellInput = null;
-let sellOutput = null;
-let recalcs = 0;
-
-let initBalanceA = 0;
-let initUsdBalanceA = 0;
-let initBalanceB = 0;
-let initUsdBalanceB = 0;
-let initUsdTotalBalance = 0;
-let currUsdTotalBalance = 0;
-let marketPercentageChange = 0;
-let balancePercentageChange = 0;
-
-const startTime = new Date();
-
-let profitA = null;
-let profitB = null;
-let totalProfit = null;
+let {
+	validTokenA = null,
+	validTokenB = null,
+	selectedTokenA = null,
+	selectedTokenB = null,
+	selectedAddressA = null,
+	selectedAddressB = null,
+	selectedDecimalsA = null,
+	selectedDecimalsB = null,
+	validTradeSize = false,
+	tradeSize = null,
+	tradeSizeInLamports = null,
+	validSpread = null,
+	loaded = false,
+	openOrders = [],
+	checkArray = [],
+	txArray = new Set(),
+	tokens = [],
+	newPrice = null,
+	startPrice = null,
+	spread = null,
+	spreadbps = null,
+	buyInput = null,
+	buyOutput = null,
+	sellInput = null,
+	sellOutput = null,
+	recalcs = 0,
+	initBalanceA = 0,
+	initUsdBalanceA = 0,
+	initBalanceB = 0,
+	initUsdBalanceB = 0,
+	initUsdTotalBalance = 0,
+	currUsdTotalBalance = 0,
+	marketPercentageChange = 0,
+	balancePercentageChange = 0,
+	startTime = new Date(),
+	profitA = null,
+	profitB = null,
+	totalProfit = null,
+} = {};
 
 let userData = {
 	selectedTokenA: null,
@@ -195,6 +187,11 @@ async function loadQuestion() {
 		await fsp.writeFile("tokens.txt", JSON.stringify(tokens));
 		console.log("Updated Token List");
 		console.log("");
+
+		if (!fs.existsSync("userData.json")) {
+			initialize();
+			return;
+		}
 
 		rl.question(
 			"Do you wish to load your saved settings? (Y/N): ",
