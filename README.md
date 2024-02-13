@@ -1,40 +1,80 @@
-## Jupiter GridBot v0.1.0
+## Jupgrid: Decentralized Grid Trading Bot Version 0.1.0 Alpha
 
-Requires Node and NPM
+![GitHub last commit](https://img.shields.io/github/last-commit/spuddya7x/jupgrid)
+![GitHub issues](https://img.shields.io/github/issues/spuddya7x/jupgrid)
+![GitHub stars](https://img.shields.io/github/stars/spuddya7x/jupgrid?style=social)
 
-https://nodejs.org/en/download
+Jupgrid is a cutting-edge, fully decentralized cryptocurrency grid trading bot designed to operate on the Jupiter Limit Order Book. It runs locally on your machine, offering a secure and personal way to automate a grid trading bot. This bot only places 1 buy and 1 sell order at a time, meaning you can be more capital efficient!
 
-https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
+## Table of Contents
 
-This bot operates a gridbot, to secure trading profits from volatility in markets.
-It will place 2 orders on the Jupiter DEX Limit Order Book, 1 to buy and 1 to sell.
-The difference between these orders, which will be repeatedly adjusted given market volatility is your profit.
-Jupiter does charge 0.1% of your order value, per order however.
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Contributing](#contributing)
+- [License](#license)
 
-Initializing the bot:
+## Features ✨
+
+- **Fully Decentralized Trading:** Operates on the Jupiter Limit Order Book, ensuring full control over your trading data and strategy.
+[Jupiter Limit Order Book](https://jup.ag/limit/SOL-USDC)
+- **Local Operation:** Runs on your own machine, providing an additional layer of security and privacy.
+- **Simple Grid Strategy:** Places one buy order and one sell order based on user-defined parameters, optimizing for market conditions.
+- **Easy Setup:** Comes with a straightforward installation and setup process, including auto-creation of necessary user files.
+- **User Prompted Parameters:** Dynamically prompts the user for trading parameters, allowing for flexible and responsive trading setups.
+
+## Installation 🔧
+
+Install Jupgrid with npm:
 
 ```
-npm install
-
-node .
+npm install -g @spuddya7x/jupgrid
 ```
 
-Breakdown of Operation:
+## Usage 🚀
 
--   On first run, the bot will create a .env file for you. Please fill that in with your Private Key and your RPC connection. (Phantom Private Key and Quicknode/Alchemy used in testing.)
--   Restart the bot with node jupgrid.js
--   The bot will then gather token information from Jupiter Strict List.
--   Strict List was chosen to provide user protection against possible scam/duplicate tokens.
--   The bot will ask you for parameters on this second run. They will be saved for future use.
--   Token A - This is the ticker for the BASE token you wish to trade. This is used for pricing. Recommend you use USDC or SOL here, makes use far easier. (USDC, SOL, etc)
--   Token B - This is the ticker for the token you wish to trade for. This cannot be the same as Token A. (SOL, Bonk, JUP, ARB, etc)
--   Size - This number is relative to Token A only. For example, Token A is USDC. Entering a size of 10 will create trades for $10 (both buys and sells, Sell enough Token B to be worth $10, or spend $10 buying Token B)
--   Recommended to have at least 10-15x your size in available currencies (both TokenA and TokenB), so that if the market trends one way for a while, you will continue to be able to place orders.
--   Recommended you have as close to equal $ value of both tokens available in your wallet.
--   Spread - Spread is measured in %. The distance from the current market price (taken at bot init) to your buy OR your sell is the spread, so if you wish to place market orders 1% away from current price, enter 1 for example. 1 = 1%, 0.5 = 0.5%.
--   Jupiter takes 0.1% of each trade, so to ensure you remain profitable, > 0.5 % is recommended.
--   Try not to place the spread too tight. This is the Alpha version, and it isnt as fast as it could be, resulting in orders being filled before the bot is ready to monitor them. If this happens, you will see constant "Recalculating Orders".
+1. **Initial Setup:** Run Jupgrid for the first time to create the necessary user configuration files:
 
-Thank you VERY much for reading this, and hopefully trying my bot.
+```
+    node .
+```
 
-If you have any questions or concerns (Or advice!) - Please reach out to me on X at https://twitter.com/SpuddyA7X
+This will generate a `.env` file where you will fill in your secure data.
+
+2. **Configuration:** Open the `.env` file in a text editor and input your Phantom wallet Private Key, and the URL to your RPC.
+
+3. **Run Jupgrid:** Start Jupgrid again with `node .` to launch the bot. Upon startup, you will be prompted to enter the following parameters:
+   
+    - Token A:
+    - Token B:
+    - Size (In Token A):
+    - Spread (% difference from current market price to orders):
+
+   Jupgrid will then place one buy and one sell order based on the parameters you have set.
+
+## Configuration ⚙️
+
+The `.env` file will need to contain your API keys and other sensitive information. Ensure you fill it out before running the bot for the second time:
+
+- `RPC_URL`=YourRPCURLHere
+- `PRIVATE_KEY`=YourPrivateKeyHere
+- `Other configurations as necessary`
+
+There will also be a `userData` file created. This will contain data on the parameters you set during setup.
+
+## Contributing 🤝
+
+We welcome contributions from everyone! To contribute:
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Create a new Pull Request
+6. ❤️
+
+####Follow me on Twitter: [@SpuddyA7X](https://twitter.com/SpuddyA7X) for more updates and other projects.
+## License 📄
+
+This project is licensed under the MIT License - see the `LICENSE` file for details.
