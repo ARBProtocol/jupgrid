@@ -16,7 +16,7 @@ Initializing the bot:
 ```
 npm install
 
-node jupgrid.js
+node .
 ```
 
 Breakdown of Operation:
