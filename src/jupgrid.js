@@ -568,6 +568,13 @@ async function getBalance(
 		`Balance for Token B (${selectedTokenB}): ${resultB.balance}, $${resultB.usdBalance.toFixed(2)}`,
 	);
 
+	if (resultA.balance === 0 || resultB.balance === 0) {
+		console.log(
+			"Please ensure you have a balance in both tokens to continue.",
+		);
+		process.exit(0);
+	}
+
 	return {
 		balanceA: resultA.balance,
 		usdBalanceA: resultA.usdBalance,
