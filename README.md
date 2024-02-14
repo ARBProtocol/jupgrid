@@ -5,6 +5,8 @@
 
 Jupgrid is a cutting-edge, fully decentralized cryptocurrency grid trading bot designed to operate on the Jupiter Limit Order Book. It runs locally on your machine, offering a secure and personal way to automate a grid trading bot. This bot only places 1 buy and 1 sell order at a time, meaning you can be more capital efficient!
 
+Use of this bot/script is at your own risk. Use of this bot/script can lead to loss of funds, so please exercise proper due diligence and DYOR before continuing.
+
 ## Table of Contents
 
 - [Features](#features-)
