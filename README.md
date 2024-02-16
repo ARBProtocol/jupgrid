@@ -1,9 +1,9 @@
 ## Jupgrid: Decentralized Grid Trading Bot Version 0.1.0 Alpha
 
-![GitHub last commit](https://img.shields.io/github/last-commit/spuddya7x/jupgrid) ![GitHub issues](https://img.shields.io/github/issues/spuddya7x/jupgrid) ![GitHub number of milestones](https://img.shields.io/github/milestones/all/spuddya7x/jupgrid) ![GitHub stars](https://img.shields.io/github/stars/spuddya7x/jupgrid?style=social)
-[![Twitter Follow](https://img.shields.io/twitter/follow/spuddya7x?style=social)](https://twitter.com/spuddya7x)
+![GitHub last commit](https://img.shields.io/github/last-commit/ARBProtocol/jupgrid) ![GitHub issues](https://img.shields.io/github/issues/ARBProtocol/jupgrid) ![GitHub number of milestones](https://img.shields.io/github/milestones/all/ARBProtocol/jupgrid) ![GitHub stars](https://img.shields.io/github/stars/ARBProtocol/jupgrid?style=social)
+[![Twitter Follow](https://img.shields.io/twitter/follow/arbprotocol?style=social)](https://twitter.com/arbprotocol)
 
-Jupgrid is a cutting-edge, fully decentralized cryptocurrency grid trading bot designed to operate on the Jupiter Limit Order Book. It runs locally on your machine, offering a secure and personal way to automate a grid trading bot. This bot only places 1 buy and 1 sell order at a time, meaning you can be more capital efficient!
+Jupgrid is a cutting-edge, fully decentralized cryptocurrency grid trading bot designed to operate on the Jupiter Limit Order Book. It runs locally on your machine, offering a secure and personal way to automate a grid trading bot. This bot only places 1 buy and 1 sell order at a time, meaning you can be more capital-efficient!
 
 Use of this bot/script is at your own risk. Use of this bot/script can lead to loss of funds, so please exercise proper due diligence and DYOR before continuing.
 
@@ -20,7 +20,7 @@ Use of this bot/script is at your own risk. Use of this bot/script can lead to l
 
 -   **Fully Decentralized Trading:** Operates on the Jupiter Limit Order Book, ensuring full control over your trading data and strategy.
     [Jupiter Limit Order Book](https://jup.ag/limit/SOL-USDC)
--   **Local Operation:** Runs on your own machine, or a VPS, providing an additional layer of security and privacy.
+-   **Local Operation:** Runs on your own machine or a VPS, providing an additional layer of security and privacy.
 -   **Simple Grid Strategy:** Places one buy order and one sell order based on user-defined parameters, optimizing for market conditions, whilst being capital efficient.
 -   **Easy Setup:** Comes with a straightforward installation and setup process, including auto-creation of necessary user files.
 -   **User Prompted Parameters:** Dynamically prompts the user for trading parameters, allowing for flexible and responsive trading setups.
@@ -75,7 +75,7 @@ We welcome contributions from everyone! To contribute:
 5. Create a new Pull Request
 6. ❤️
 
-#### Follow me on Twitter: [@SpuddyA7X](https://twitter.com/SpuddyA7X) for more updates.
+#### Follow us on Twitter: [@arbsolana](https://twitter.com/arbprotocol) for more updates.
 
 ## License 📄
 
