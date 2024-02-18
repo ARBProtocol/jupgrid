@@ -97,7 +97,9 @@ let {
 	sellInput = null,
 	sellOutput = null,
 	recalcs = 0,
+	initBalanceA = 0,
 	initUsdBalanceA = 0,
+	initBalanceB = 0,
 	initUsdBalanceB = 0,
 	currBalanceA = 0,
 	currBalanceB = 0,
@@ -725,7 +727,7 @@ async function monitorPrice(
 ) {
 	if (shutDown) return;
 	console.clear();
-	console.log("Jupiter GridBot v0.1.0");
+	console.log("Jupiter GridBot v0.2.01");
 	formatElapsedTime(startTime);
 	let retries = 0;
 
