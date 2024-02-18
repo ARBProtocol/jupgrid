@@ -19,12 +19,15 @@
 		"fmt": "prettier --write ."
 	},
 	"dependencies": {
+		"@jup-ag/api": "^6.0.11",
+		"@jup-ag/core": "^4.0.0-beta.21",
 		"@jup-ag/limit-order-sdk": "^0.1.10",
 		"@project-serum/anchor": "^0.26.0",
 		"@solana/spl-token": "^0.4.0",
 		"@solana/web3.js": "^1.90.0",
 		"axios": "^1.6.7",
 		"bs58": "^5.0.0",
+		"colors": "^1.4.0",
 		"cross-fetch": "^4.0.0",
 		"dotenv": "^16.4.1",
 		"fs": "0.0.1-security",

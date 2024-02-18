@@ -1,4 +1,4 @@
-## Jupgrid: Decentralized Grid Trading Bot Version 0.1.0 Alpha
+## Jupgrid: Decentralized Grid Trading Bot Version 0.2.0 Alpha
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/ARBProtocol/jupgrid) ![GitHub issues](https://img.shields.io/github/issues/ARBProtocol/jupgrid) ![GitHub number of milestones](https://img.shields.io/github/milestones/all/ARBProtocol/jupgrid) ![GitHub stars](https://img.shields.io/github/stars/ARBProtocol/jupgrid?style=social)
 [![Twitter Follow](https://img.shields.io/twitter/follow/arbprotocol?style=social)](https://twitter.com/arbprotocol)
@@ -52,6 +52,9 @@ This will generate a `.env` file where you will fill in your secure data.
     - Token B:
     - Size (In Token A):
 	- Spread (% difference from current market price to orders):
+    - Rebalancing (Y/N)
+	- Rebalancing Threshold (% balance at which to Rebalance your holdings)-(User has $100 total, $80 in SOL and $20 USDC. Setting 20% or higher would rebalance you to approx 50/50)
+	- Rebalancing Slippage (The maximum allowed slippage at which your rebalance swap can have)
 
 Jupgrid will then place one buy and one sell order based on the parameters you have set.
 
