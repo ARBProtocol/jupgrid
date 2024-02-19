@@ -43,9 +43,9 @@ function envload() {
 }
 
 
-async function saveUserData(selectedTokenA, selectedAddressA, selectedDecimalsA, selectedTokenB, selectedAddressB, selectedDecimalsB, tradeSize, spread, rebalanceAllowed, rebalancePercentage, rebalanceSlippageBPS) {
+function saveUserData(selectedTokenA, selectedAddressA, selectedDecimalsA, selectedTokenB, selectedAddressB, selectedDecimalsB, tradeSize, spread, rebalanceAllowed, rebalancePercentage, rebalanceSlippageBPS) {
 	try {
-		await fsp.writeFile("userData.json", JSON.stringify({
+		fs.writeFileSync("userData.json", JSON.stringify({
 			selectedTokenA,
 			selectedAddressA,
 			selectedDecimalsA,

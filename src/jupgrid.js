@@ -462,7 +462,7 @@ async function initialize() {
 			sellOutput = tradeSizeInLamports;
 
 			init = true;
-			await saveUserData();
+			saveUserData(selectedTokenA, selectedAddressA, selectedDecimalsA, selectedTokenB, selectedAddressB, selectedDecimalsB, tradeSize, spread, rebalanceAllowed, rebalancePercentage, rebalanceSlippageBPS);
 			console.log("\u{1F680} Starting Jupiter Gridbot");
 
 			let initialBalances = await getBalance(
