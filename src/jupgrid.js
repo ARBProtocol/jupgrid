@@ -501,8 +501,6 @@ async function initialize() {
 				`${selectedTokenA} Balance: ${initBalanceA}, worth $${initUsdBalanceA.toFixed(2)}`,
 				`\n${selectedTokenB} Balance: ${initBalanceB}, worth $${initUsdBalanceB.toFixed(2)}`,
 				`\nTotal User Balance: $${initUsdTotalBalance.toFixed(2)}`,
-				`\nTest Token Rebalance Value A: ${initialBalances.tokenARebalanceValue}`,
-				`\nTest Token Rebalance Value B: ${initialBalances.tokenBRebalanceValue}`,
 			);
 			setOrders(tradeSizeInLamports);
 		} catch (error) {
