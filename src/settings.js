@@ -57,7 +57,7 @@ function saveUserData(selectedTokenA, selectedAddressA, selectedDecimalsA, selec
 			rebalanceAllowed,
 			rebalancePercentage,
 			rebalanceSlippageBPS
-		}));
+		}, null, 4));
 		console.log("User data saved successfully.");
 	} catch (error) {
 		console.error("Error saving user data:", error);
