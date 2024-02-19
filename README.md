@@ -1,4 +1,4 @@
-## Jupgrid: Decentralized Grid Trading Bot Version 0.2.0 Alpha
+## Jupgrid: Decentralized Grid Trading Bot Version 0.2.01 Alpha
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/ARBProtocol/jupgrid) ![GitHub issues](https://img.shields.io/github/issues/ARBProtocol/jupgrid) ![GitHub number of milestones](https://img.shields.io/github/milestones/all/ARBProtocol/jupgrid) ![GitHub stars](https://img.shields.io/github/stars/ARBProtocol/jupgrid?style=social)
 [![Twitter Follow](https://img.shields.io/twitter/follow/arbprotocol?style=social)](https://twitter.com/arbprotocol)
@@ -30,7 +30,7 @@ Use of this bot/script is at your own risk. Use of this bot/script can lead to l
 Download the source code by cloning it:
 
 ```bash
-git clone https://github.com/SpuddyA7X/jupgrid
+git clone https://github.com/ARBProtocol/jupgrid
 npm install
 ```
 
