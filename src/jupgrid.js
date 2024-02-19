@@ -74,6 +74,7 @@ let {
 		tradeSize: null,
 		spread: null,
 	},
+	monitorDelay = 2000
 } = {};
 
 async function loadQuestion() {
@@ -102,6 +103,7 @@ async function loadQuestion() {
 								`Order Size (in ${userData.selectedAddressA}): ${userData.tradeSize}`,
 							);
 							console.log(`Spread: ${userData.spread}`);
+							console.log(`Monitoring delay: ${monitorDelay}ms`)
 							console.log(
 								`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`,
 							);
@@ -134,6 +136,7 @@ async function loadQuestion() {
 											rebalanceAllowed,
 											rebalancePercentage,
 											rebalanceSlippageBPS,
+											monitorDelay
 										} = userData);
 										console.log(
 											"Settings applied successfully!",
@@ -141,7 +144,7 @@ async function loadQuestion() {
 										initialize();
 									} else {
 										console.log(
-											"Discarding loaded settings, please continue.",
+											"Discarding saved settings, please continue.",
 										);
 										selectedTokenA = null;
 										selectedTokenB = null;
@@ -430,6 +433,19 @@ async function initialize() {
 			}
 		}
 
+		// ask for monitor delay
+		const monitorDelayQuestion = await questionAsync(
+			`Enter the delay between price checks in milliseconds (default 2000ms): `,
+		);
+		const parsedMonitorDelay = parseInt(monitorDelayQuestion.trim());
+		if (!isNaN(parsedMonitorDelay) && parsedMonitorDelay > 0) {
+			monitorDelay = parsedMonitorDelay;
+		} else {
+			console.log(
+				"Invalid monitor delay. Please enter a valid number greater than 0.",
+			);
+		}
+
 		spreadbps = spread * 100;
 		// Calculate trade size in lamports based on the token
 		if (selectedTradeToken.toLowerCase() === "a") {
@@ -458,6 +474,7 @@ async function initialize() {
 			};
 			const response = await axios.get(quoteurl, { params: queryParams });
 			//console.log(`Response for ${selectedTokenA} vs ${selectedTokenB}:`, response.data);
+
 			newPrice = response.data.outAmount;
 			startPrice = response.data.outAmount;
 			//Calc first price layers
@@ -482,6 +499,7 @@ async function initialize() {
 				rebalanceAllowed,
 				rebalancePercentage,
 				rebalanceSlippageBPS,
+				monitorDelay
 			);
 			console.log("\u{1F680} Starting Jupiter Gridbot");
 
@@ -740,7 +758,7 @@ async function monitorPrice(
 				return null;
 			}
 
-			await new Promise((resolve) => setTimeout(resolve, 2000)); // Delay before retrying
+			await new Promise((resolve) => setTimeout(resolve, monitorDelay)); // Delay before retrying
 		}
 	}
 }
