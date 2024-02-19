@@ -4,9 +4,8 @@ const { ownerFilter, LimitOrderProvider } = require("@jup-ag/limit-order-sdk");
 const fetch = require("cross-fetch");
 const axios = require("axios");
 const fs = require("fs");
-const fsp = require("fs").promises;
 const { envload, saveUserData, loadUserData } = require("./settings");
-const { delay, rl, questionAsync } = require("./utils");
+const { delay, rl, questionAsync, downloadTokensList } = require("./utils");
 
 let [wallet, rpcUrl] = envload();
 
@@ -74,113 +73,109 @@ let {
 		selectedTokenB: null,
 		tradeSize: null,
 		spread: null,
-	}
+	},
 } = {};
 
 async function loadQuestion() {
 	try {
-		const response = await axios.get("https://token.jup.ag/strict");
-		const data = response.data;
-		tokens = data.map(({ symbol, address, decimals }) => ({
-			symbol,
-			address,
-			decimals,
-		}));
-		await fsp.writeFile("tokens.txt", JSON.stringify(tokens));
-		console.log("Updated Token List");
-		console.log("");
+		await downloadTokensList();
+		console.log("Updated Token List\n");
 
 		if (!fs.existsSync("userData.json")) {
 			console.log("No user data found. Starting with fresh inputs.");
 			initialize();
-			return;
-		}
+		} else {
+			rl.question(
+				"Do you wish to load your saved settings? (Y/N): ",
+				function (responseQ) {
+					responseQ = responseQ.toUpperCase(); // Case insensitivity
 
-		rl.question(
-			"Do you wish to load your saved settings? (Y/N): ",
-			async function (responseQ) {
-				responseQ = responseQ.toUpperCase(); // Case insensitivity
+					if (responseQ === "Y") {
+						try {
+							// Show user data
+							const userData = loadUserData();
 
-				if (responseQ === "Y") {
-					try {
-						// Show user data
-						const userData = loadUserData();
-
-						console.log("User data loaded successfully.");
-						console.log(`Token A: ${userData.selectedTokenA}`);
-						console.log(`Token B: ${userData.selectedTokenB}`);
-						console.log(
-							`Order Size (in ${userData.selectedAddressA}): ${userData.tradeSize}`,
-						);
-						console.log(`Spread: ${userData.spread}`);
-						console.log(`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`);
-						if (userData.rebalanceAllowed) {
+							console.log("User data loaded successfully.");
+							console.log(`Token A: ${userData.selectedTokenA}`);
+							console.log(`Token B: ${userData.selectedTokenB}`);
 							console.log(
-								`Rebalance Threshold: ${userData.rebalancePercentage}%`,
+								`Order Size (in ${userData.selectedAddressA}): ${userData.tradeSize}`,
 							);
+							console.log(`Spread: ${userData.spread}`);
 							console.log(
-								`Rebalance Swap Slippage: ${userData.rebalanceSlippageBPS / 100}%`,
+								`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`,
 							);
+							if (userData.rebalanceAllowed) {
+								console.log(
+									`Rebalance Threshold: ${userData.rebalancePercentage}%`,
+								);
+								console.log(
+									`Rebalance Swap Slippage: ${userData.rebalanceSlippageBPS / 100}%`,
+								);
+							}
+
+							// Prompt for confirmation to use these settings
+							rl.question(
+								"Proceed with these settings? (Y/N): ",
+								function (confirmResponse) {
+									confirmResponse =
+										confirmResponse.toUpperCase();
+									if (confirmResponse === "Y") {
+										// Apply loaded settings
+										({
+											selectedTokenA,
+											selectedAddressA,
+											selectedDecimalsA,
+											selectedTokenB,
+											selectedAddressB,
+											selectedDecimalsB,
+											tradeSize,
+											spread,
+											rebalanceAllowed,
+											rebalancePercentage,
+											rebalanceSlippageBPS,
+										} = userData);
+										console.log(
+											"Settings applied successfully!",
+										);
+										initialize();
+									} else {
+										console.log(
+											"Discarding loaded settings, please continue.",
+										);
+										selectedTokenA = null;
+										selectedTokenB = null;
+										tradeSize = null;
+										spread = null;
+										rebalanceAllowed = null;
+										rebalancePercentage = null;
+										rebalanceSlippageBPS = null;
+										initialize();
+									}
+								},
+							);
+						} catch (error) {
+							console.error("Failed to load settings:", error);
+							initialize(); // Proceed with initialization in case of error
 						}
-
-						// Prompt for confirmation to use these settings
-						rl.question(
-							"Proceed with these settings? (Y/N): ",
-							function (confirmResponse) {
-								confirmResponse = confirmResponse.toUpperCase();
-								if (confirmResponse === "Y") {
-									// Apply loaded settings
-									({
-										selectedTokenA,
-										selectedAddressA,
-										selectedDecimalsA,
-										selectedTokenB,
-										selectedAddressB,
-										selectedDecimalsB,
-										tradeSize,
-										spread,
-										rebalanceAllowed,
-										rebalancePercentage,
-										rebalanceSlippageBPS
-									} = userData);
-									console.log(
-										"Settings applied successfully!",
-									);
-									initialize();
-								} else {
-									console.log(
-										"Discarding loaded settings, please continue.",
-									);
-									selectedTokenA = null;
-									selectedTokenB = null;
-									tradeSize = null;
-									spread = null;
-									rebalanceAllowed = null;
-									rebalancePercentage = null;
-									rebalanceSlippageBPS = null;
-									initialize();
-								}
-							},
+					} else if (responseQ === "N") {
+						console.log("Starting with blank settings.");
+						selectedTokenA = null;
+						selectedTokenB = null;
+						tradeSize = null;
+						spread = null;
+						rebalanceAllowed = null;
+						rebalancePercentage = null;
+						rebalanceSlippageBPS = null; //default slippage
+						initialize();
+					} else {
+						console.log(
+							"Invalid response. Please type 'Y' or 'N'.",
 						);
-					} catch (error) {
-						console.error("Failed to load settings:", error);
-						initialize(); // Proceed with initialization in case of error
 					}
-				} else if (responseQ === "N") {
-					console.log("Starting with blank settings.");
-					selectedTokenA = null;
-					selectedTokenB = null;
-					tradeSize = null;
-					spread = null;
-					rebalanceAllowed = null;
-					rebalancePercentage = null;
-					rebalanceSlippageBPS = null; //default slippage
-					initialize();
-				} else {
-					console.log("Invalid response. Please type 'Y' or 'N'.");
-				}
-			},
-		);
+				},
+			);
+		}
 	} catch (error) {
 		console.error("Error:", error);
 	}
@@ -217,6 +212,12 @@ async function initialize() {
 		) {
 			validRebalanceSlippage = true;
 		}
+
+		if (!fs.existsSync("tokens.txt")) {
+			await downloadTokensList();
+		}
+		const data = fs.readFileSync("tokens.txt");
+		tokens = JSON.parse(data);
 
 		if (userData.selectedTokenA) {
 			const tokenAExists = tokens.some(

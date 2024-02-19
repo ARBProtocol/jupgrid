@@ -92,9 +92,8 @@ function loadUserData() {
 	}
 }
 
-
 module.exports = {
 	envload,
 	saveUserData,
-	loadUserData
+	loadUserData,
 };

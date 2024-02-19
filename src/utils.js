@@ -1,5 +1,6 @@
 const readline = require("readline");
-
+const axios = require("axios");
+const fs = require("fs");
 function delay(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -15,8 +16,21 @@ function questionAsync(question) {
 	});
 }
 
+async function downloadTokensList() {
+	const response = await axios.get("https://token.jup.ag/strict");
+	const data = response.data;
+	tokens = data.map(({ symbol, address, decimals }) => ({
+		symbol,
+		address,
+		decimals,
+	}));
+	fs.writeFileSync("tokens.txt", JSON.stringify(tokens));
+	return data;
+}
+
 module.exports = {
 	delay,
 	questionAsync,
 	rl,
+	downloadTokensList,
 };
