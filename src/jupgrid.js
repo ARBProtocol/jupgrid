@@ -9,7 +9,6 @@ const fs = require("fs");
 const fsp = require("fs").promises;
 const readline = require("readline");
 const dotenv = require("dotenv");
-const colors = require("colors");
 
 function envload() {
 	const envFilePath = ".env";
@@ -107,6 +106,7 @@ let {
 	currUSDBalanceB = 0,
 	initUsdTotalBalance = 0,
 	currUsdTotalBalance = 0,
+	marketPercentageChange = 0,
 	balancePercentageChange = 0,
 	tokenRebalanceValue = null,
 	tokenARebalanceValue = 0,
@@ -121,7 +121,6 @@ let {
 	profitA = null,
 	profitB = null,
 	totalProfit = null,
-	lastPrice = 0,
 } = {};
 
 let userData = {
@@ -130,15 +129,6 @@ let userData = {
 	tradeSize: null,
 	spread: null,
 };
-
-colors.setTheme({
-	profit: 'green',
-	loss: 'red',
-	warn: 'yellow',
-	error: 'brightRed',
-	tokenA: 'blue',
-	tokenB: 'magenta'
-})
 
 function delay(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -183,9 +173,9 @@ async function loadUserData() {
 		rebalancePercentage = userData.rebalancePercentage;
 		rebalanceSlippageBPS = userData.rebalanceSlippageBPS;
 		console.log("User data loaded successfully.");
-		console.log(colors.tokenA(`Token A: ${selectedTokenA}`));
-		console.log(colors.tokenB(`Token B: ${selectedTokenB}`));
-		console.log(`Trade size (Token A): ${tradeSize}`);
+		console.log(`Token A: ${selectedTokenA}`);
+		console.log(`Token B: ${selectedTokenB}`);
+		console.log(`Order Size (in ${selectedAddressA}): ${tradeSize}`);
 		console.log(`Spread: ${spread}`);
 		console.log(`Rebalance Allowed: ${rebalanceAllowed}`);
 		if (rebalanceAllowed) {
@@ -547,7 +537,9 @@ async function initialize() {
 				selectedTokenA,
 				selectedTokenB,
 			);
+			initBalanceA = initialBalances.balanceA;
 			initUsdBalanceA = initialBalances.usdBalanceA;
+			initBalanceB = initialBalances.balanceB;
 			initUsdBalanceB = initialBalances.usdBalanceB;
 			initUsdTotalBalance = initUsdBalanceA + initUsdBalanceB;
 			console.log(
@@ -613,7 +605,7 @@ async function getBalance(
 	async function getTokenAndUSDCBalance(mintAddress, decimals) {
 		if (
 			!mintAddress ||
-			mintAddress === SOL_MINT_ADDRESS
+			mintAddress === "So11111111111111111111111111111111111111112"
 		) {
 			return getSOLBalanceAndUSDC();
 		}
@@ -677,13 +669,6 @@ async function getBalance(
 		selectedDecimalsB,
 	);
 
-	console.log(
-		`Balance for Token A (${selectedTokenA}): ${resultA.balance}, $${resultA.usdBalance.toFixed(2)}`.tokenA,
-	);
-	console.log(
-		`Balance for Token B (${selectedTokenB}): ${resultB.balance}, $${resultB.usdBalance.toFixed(2)}`.tokenB,
-	);
-
 	if (resultA.balance === 0 || resultB.balance === 0) {
 		console.log(
 			"Please ensure you have a balance in both tokens to continue.",
@@ -727,7 +712,7 @@ async function monitorPrice(
 ) {
 	if (shutDown) return;
 	console.clear();
-	console.log("Jupiter GridBot v0.2.01");
+	console.log("Jupiter GridBot v0.1.0");
 	formatElapsedTime(startTime);
 	let retries = 0;
 
@@ -742,19 +727,16 @@ async function monitorPrice(
 
 			const response = await axios.get(quoteurl, { params: queryParams });
 			const newPrice = response.data.outAmount;
-			let marketPercentageChange = ((newPrice - lastPrice) / lastPrice) * 100;
+			marketPercentageChange =
+				((newPrice - startPrice) / startPrice) * 100;
 			console.log(
-				`\nSell Price : ${colors.tokenB(sellInput / Math.pow(10, selectedDecimalsB))} ${colors.tokenB(selectedTokenB)} For ${colors.tokenA(buyInput / Math.pow(10, selectedDecimalsA))} ${colors.tokenA(selectedTokenA)}`,
+				`\nSell Price : ${sellInput / Math.pow(10, selectedDecimalsB)} ${selectedTokenB} For ${buyInput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA}`,
 			);
 			console.log(
-				`Current Sell Price : ${colors.tokenB(newPrice / Math.pow(10, selectedDecimalsB))} For ${colors.tokenA(buyInput / Math.pow(10, selectedDecimalsA))} ${colors.tokenA(selectedTokenA)}`,
+				`Current Price : ${newPrice / Math.pow(10, selectedDecimalsB)} For ${buyInput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA}`,
 			);
 			console.log(
-				`Buy Price : ${colors.tokenA(sellOutput / Math.pow(10, selectedDecimalsA))} ${colors.tokenA(selectedTokenA)} For ${colors.tokenB(buyOutput / Math.pow(10, selectedDecimalsB))} ${colors.tokenB(selectedTokenB)}`,
-			);
-
-			console.log(
-				`Market Change Since Last TX: ${(marketPercentageChange > 0) ? colors.profit(`${marketPercentageChange.toFixed(5)}% \u{1F4C8}`) : colors.loss(`${marketPercentageChange.toFixed(5)}% \u{1F4C9}`)}\n`
+				`Buy Price : ${sellOutput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} For ${buyOutput / Math.pow(10, selectedDecimalsB)} ${selectedTokenB}\n`,
 			);
 
 			await checkOpenOrders();
@@ -787,14 +769,14 @@ async function monitorPrice(
 			break; // Break the loop if we've successfully handled the price monitoring
 		} catch (error) {
 			console.error(
-				`Error: Connection or Token Data Error (Attempt ${retries + 1} of ${maxRetries})`.error,
+				`Error: Connection or Token Data Error (Attempt ${retries + 1} of ${maxRetries})`,
 			);
 			console.log(error);
 			retries++;
 
 			if (retries === maxRetries) {
 				console.error(
-					"Maximum number of retries reached. Unable to retrieve data.".error,
+					"Maximum number of retries reached. Unable to retrieve data.",
 				);
 				return null;
 			}
@@ -825,14 +807,6 @@ async function setOrders() {
 	let base1 = Keypair.generate();
 	console.log("");
 	let base2 = Keypair.generate();
-	const queryParams = {
-		inputMint: selectedAddressA,
-		outputMint: selectedAddressB,
-		amount: tradeSizeInLamports,
-		slippageBps: 0,
-	};
-	const response = await axios.get(quoteurl, { params: queryParams });
-	lastPrice = response.data.outAmount;
 	try {
 		async function sendTransactionAsync(
 			input,
@@ -845,7 +819,7 @@ async function setOrders() {
 			await new Promise((resolve) => {
 				setTimeout(async () => {
 					try {
-						_ = await sendTx(
+						const transaction = await sendTx(
 							input,
 							output,
 							inputMint,
@@ -854,7 +828,7 @@ async function setOrders() {
 						);
 						resolve();
 					} catch (error) {
-						console.error("Error sending transaction:".error, error);
+						console.error("Error sending transaction:", error);
 						resolve(); // Resolve the promise even in case of an error to continue with the next transaction
 					}
 				}, delay);
@@ -862,7 +836,7 @@ async function setOrders() {
 		}
 
 		// Send the "buy" transactions
-		console.log(`\u{1F4C9} Placing Buy Layer ${colors.tokenA(selectedTokenA)} - ${colors.tokenB(selectedTokenB)}`);
+		console.log("\u{1F4C9} Placing Buy Layer");
 		await sendTransactionAsync(
 			buyInput,
 			buyOutput,
@@ -873,7 +847,7 @@ async function setOrders() {
 		);
 
 		// Send the "sell" transaction
-		console.log(`\u{1F4C8} Placing Sell Layer ${colors.tokenB(selectedTokenB)} - ${colors.tokenA(selectedTokenA)}`);
+		console.log("\u{1F4C8} Placing Sell Layer");
 		await sendTransactionAsync(
 			sellInput,
 			sellOutput,
@@ -895,7 +869,7 @@ async function setOrders() {
 			tradeSizeInLamports,
 		);
 	} catch (error) {
-		console.error("Error:".error, error);
+		console.error("Error:", error);
 	}
 }
 
@@ -938,7 +912,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 
 			if (!response.ok) {
 				throw new Error(
-					`Failed to create order: ${response.statusText}`.error,
+					`Failed to create order: ${response.statusText}`,
 				);
 			}
 
@@ -1075,7 +1049,6 @@ async function checkOpenOrders() {
 		console.log(
 			`Balance Percent Change Since Start: ${balancePercentageChange.toFixed(2)}%`,
 		);
-		let marketPercentageChange = ((newPrice - startPrice) / startPrice) * 100;
 		console.log(
 			`Market Percent Change Since Start: ${marketPercentageChange.toFixed(2)}%`,
 		);
