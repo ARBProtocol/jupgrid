@@ -2,50 +2,12 @@ const solanaWeb3 = require("@solana/web3.js");
 const { Connection, Keypair, VersionedTransaction} = solanaWeb3;
 const { ownerFilter, LimitOrderProvider } = require("@jup-ag/limit-order-sdk");
 const fetch = require("cross-fetch");
-const { Wallet } = require("@project-serum/anchor");
-const bs58 = require("bs58");
 const axios = require("axios");
 const fs = require("fs");
 const fsp = require("fs").promises;
 const readline = require("readline");
-const dotenv = require("dotenv");
-
-function envload() {
-	const envFilePath = ".env";
-	const defaultEnvContent = `# Please fill in the following environment variables\nRPC_URL=\nPRIVATE_KEY=`;
-	try {
-		if (!fs.existsSync(envFilePath)) {
-			fs.writeFileSync(envFilePath, defaultEnvContent, "utf8");
-			console.log(
-				".env file created. Please fill in your private information, and start JupGrid again.",
-			);
-			process.exit(0);
-		}
-		console.log("Private Key and RPC Loaded Successfully.\n");
-	} catch (error) {
-		console.error(
-			"An error occurred while checking or creating the .env file:",
-			error,
-		);
-		process.exit(1);
-	}
-	dotenv.config();
-	if (!process.env.PRIVATE_KEY || !process.env.RPC_URL) {
-		console.error(
-			"Missing required environment variables in .env file. Please ensure PRIVATE_KEY and RPC_URL are set.",
-		);
-		process.exit(1);
-	}
-
-	return [
-		new Wallet(
-			solanaWeb3.Keypair.fromSecretKey(
-				bs58.decode(process.env.PRIVATE_KEY),
-			),
-		),
-		process.env.RPC_URL,
-	];
-}
+const { envload, saveUserData } = require("./settings");
+const { delay } = require("./utils");
 
 let [wallet, rpcUrl] = envload();
 
@@ -129,33 +91,6 @@ let userData = {
 	tradeSize: null,
 	spread: null,
 };
-
-function delay(ms) {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function saveUserData() {
-	const userData = {
-		selectedTokenA,
-		selectedAddressA,
-		selectedDecimalsA,
-		selectedTokenB,
-		selectedAddressB,
-		selectedDecimalsB,
-		tradeSize: tradeSize,
-		spread,
-		rebalanceAllowed,
-		rebalancePercentage,
-		rebalanceSlippageBPS,
-	};
-
-	try {
-		await fsp.writeFile("userData.json", JSON.stringify(userData));
-		console.log("User data saved successfully.");
-	} catch (error) {
-		console.error("Error saving user data:", error);
-	}
-}
 
 async function loadUserData() {
 	try {
