@@ -1,33 +1,19 @@
 const solanaWeb3 = require("@solana/web3.js");
-const { Connection, Keypair, VersionedTransaction} = solanaWeb3;
+const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 const { ownerFilter, LimitOrderProvider } = require("@jup-ag/limit-order-sdk");
 const fetch = require("cross-fetch");
 const axios = require("axios");
 const fs = require("fs");
 const fsp = require("fs").promises;
-const readline = require("readline");
-const { envload, saveUserData } = require("./settings");
-const { delay } = require("./utils");
+const { envload, saveUserData, loadUserData } = require("./settings");
+const { delay, rl, questionAsync } = require("./utils");
 
 let [wallet, rpcUrl] = envload();
 
-const connection = new Connection(rpcUrl, "processed", {	
+const connection = new Connection(rpcUrl, "processed", {
 	confirmTransactionInitialTimeout: 30000,
 });
 const limitOrder = new LimitOrderProvider(connection);
-const commitment = "processed";
-// Create a readline interface
-const rl = readline.createInterface({
-	input: process.stdin,
-	output: process.stdout,
-});
-
-// Function to prompt the user and get their input
-function questionAsync(question) {
-	return new Promise((resolve) => {
-		rl.question(question, resolve);
-	});
-}
 
 let shutDown = false;
 
@@ -47,7 +33,7 @@ let {
 	validSpread = null,
 	loaded = false,
 	openOrders = [],
-	checkArray = [],	
+	checkArray = [],
 	tokens = [],
 	newPrice = null,
 	startPrice = null,
@@ -83,45 +69,13 @@ let {
 	profitA = null,
 	profitB = null,
 	totalProfit = null,
-} = {};
-
-let userData = {
-	selectedTokenA: null,
-	selectedTokenB: null,
-	tradeSize: null,
-	spread: null,
-};
-
-async function loadUserData() {
-	try {
-		const data = await fsp.readFile("userData.json");
-		const userData = JSON.parse(data);
-		selectedTokenA = userData.selectedTokenA;
-		selectedAddressA = userData.selectedAddressA;
-		selectedDecimalsA = userData.selectedDecimalsA;
-		selectedTokenB = userData.selectedTokenB;
-		selectedAddressB = userData.selectedAddressB;
-		selectedDecimalsB = userData.selectedDecimalsB;
-		tradeSize = userData.tradeSize;
-		spread = userData.spread;
-		rebalanceAllowed = userData.rebalanceAllowed;
-		rebalancePercentage = userData.rebalancePercentage;
-		rebalanceSlippageBPS = userData.rebalanceSlippageBPS;
-		console.log("User data loaded successfully.");
-		console.log(`Token A: ${selectedTokenA}`);
-		console.log(`Token B: ${selectedTokenB}`);
-		console.log(`Order Size (in ${selectedAddressA}): ${tradeSize}`);
-		console.log(`Spread: ${spread}`);
-		console.log(`Rebalance Allowed: ${rebalanceAllowed}`);
-		if (rebalanceAllowed) {
-			console.log(`Rebalance Threshold: ${rebalancePercentage}%`);
-			console.log(`Rebalance Swap Slippage: ${rebalanceSlippageBPS / 100}%`);
-		}
-	} catch (error) {
-		console.log("No user data found. Starting with fresh inputs.");
-		initialize();
+	userData = {
+		selectedTokenA: null,
+		selectedTokenB: null,
+		tradeSize: null,
+		spread: null,
 	}
-}
+} = {};
 
 async function loadQuestion() {
 	try {
@@ -149,7 +103,26 @@ async function loadQuestion() {
 
 				if (responseQ === "Y") {
 					try {
-						const userData = await loadUserData(); // Load but don't apply yet
+						// Show user data
+						const userData = loadUserData();
+
+						console.log("User data loaded successfully.");
+						console.log(`Token A: ${userData.selectedTokenA}`);
+						console.log(`Token B: ${userData.selectedTokenB}`);
+						console.log(
+							`Order Size (in ${userData.selectedAddressA}): ${userData.tradeSize}`,
+						);
+						console.log(`Spread: ${userData.spread}`);
+						console.log(`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`);
+						if (userData.rebalanceAllowed) {
+							console.log(
+								`Rebalance Threshold: ${userData.rebalancePercentage}%`,
+							);
+							console.log(
+								`Rebalance Swap Slippage: ${userData.rebalanceSlippageBPS / 100}%`,
+							);
+						}
+
 						// Prompt for confirmation to use these settings
 						rl.question(
 							"Proceed with these settings? (Y/N): ",
@@ -157,7 +130,19 @@ async function loadQuestion() {
 								confirmResponse = confirmResponse.toUpperCase();
 								if (confirmResponse === "Y") {
 									// Apply loaded settings
-									loadUserData();
+									({
+										selectedTokenA,
+										selectedAddressA,
+										selectedDecimalsA,
+										selectedTokenB,
+										selectedAddressB,
+										selectedDecimalsB,
+										tradeSize,
+										spread,
+										rebalanceAllowed,
+										rebalancePercentage,
+										rebalanceSlippageBPS
+									} = userData);
 									console.log(
 										"Settings applied successfully!",
 									);
@@ -205,25 +190,33 @@ async function initialize() {
 	try {
 		if (selectedTokenA != null) {
 			validTokenA = true;
-		};
+		}
 		if (selectedTokenB != null) {
 			validTokenB = true;
-		};
+		}
 		if (tradeSize != null) {
 			validTradeSize = true;
-		};
+		}
 		if (spread != null) {
 			validSpread = true;
-		};	
+		}
 		if (rebalanceAllowed != null) {
 			validRebalanceAllowed = true;
-		};
-		if (rebalancePercentage != null && rebalancePercentage > 0 && rebalancePercentage <= 10000) {
+		}
+		if (
+			rebalancePercentage != null &&
+			rebalancePercentage > 0 &&
+			rebalancePercentage <= 10000
+		) {
 			validRebalancePercentage = true;
-		};
-		if (rebalanceSlippageBPS != null && rebalanceSlippageBPS >= 0.1 && rebalanceSlippageBPS <= 100) {
+		}
+		if (
+			rebalanceSlippageBPS != null &&
+			rebalanceSlippageBPS >= 0.1 &&
+			rebalanceSlippageBPS <= 100
+		) {
 			validRebalanceSlippage = true;
-		};	
+		}
 
 		if (userData.selectedTokenA) {
 			const tokenAExists = tokens.some(
@@ -369,64 +362,78 @@ async function initialize() {
 
 		while (rebalanceAllowed === null) {
 			const rebalanceQuestion = await questionAsync(
-				"Do you want to allow rebalancing of Tokens (Currently Experimental)? (Y/N): "
+				"Do you want to allow rebalancing of Tokens (Currently Experimental)? (Y/N): ",
 			);
-	
-			if (rebalanceQuestion.trim().toUpperCase() === 'Y') {
+
+			if (rebalanceQuestion.trim().toUpperCase() === "Y") {
 				rebalanceAllowed = true;
-	
+
 				const percentageQuestion = await questionAsync(
-					"At what balance percentage do you want to rebalance your lower balance token? (Enter a number between 1 and 100): "
+					"At what balance percentage do you want to rebalance your lower balance token? (Enter a number between 1 and 100): ",
 				);
 				const parsedPercentage = parseFloat(percentageQuestion.trim());
-				if (!isNaN(parsedPercentage) && parsedPercentage > 0 && parsedPercentage <= 100) {
+				if (
+					!isNaN(parsedPercentage) &&
+					parsedPercentage > 0 &&
+					parsedPercentage <= 100
+				) {
 					rebalancePercentage = parsedPercentage;
 				} else {
-					console.log("Invalid percentage. Please enter a number between 1 and 100.");
+					console.log(
+						"Invalid percentage. Please enter a number between 1 and 100.",
+					);
 					continue; // Ask the rebalance percentage question again
 				}
-	
+
 				// Loop for maximum allowed slippage question until a valid answer is given or default is accepted
 				let isValidSlippage = false;
 				while (!isValidSlippage) {
 					const slippageQuestion = await questionAsync(
-						`What is the maximum allowed slippage for the rebalance transaction? (Enter a number between 0.1 and 100, representing percentage, default 0.3%): `
+						`What is the maximum allowed slippage for the rebalance transaction? (Enter a number between 0.1 and 100, representing percentage, default 0.3%): `,
 					);
-	
+
 					let parsedSlippage;
-					if (slippageQuestion.trim() === '') {
+					if (slippageQuestion.trim() === "") {
 						// User accepted the default value
 						parsedSlippage = 0.3;
 						isValidSlippage = true;
 					} else {
 						// User entered a value, attempt to parse it
 						parsedSlippage = parseFloat(slippageQuestion.trim());
-						if (!isNaN(parsedSlippage) && parsedSlippage >= 0.1 && parsedSlippage <= 100) {
+						if (
+							!isNaN(parsedSlippage) &&
+							parsedSlippage >= 0.1 &&
+							parsedSlippage <= 100
+						) {
 							// Valid slippage value entered
 							isValidSlippage = true;
 						} else {
-							console.log("Invalid slippage value. Please enter a number between 0.1 and 100, or press Enter to accept the default value.");
+							console.log(
+								"Invalid slippage value. Please enter a number between 0.1 and 100, or press Enter to accept the default value.",
+							);
 						}
 					}
-	
+
 					if (isValidSlippage) {
 						rebalanceSlippageBPS = parsedSlippage * 100;
 					}
 				}
-			} else if (rebalanceQuestion.trim().toUpperCase() === 'N') {
+			} else if (rebalanceQuestion.trim().toUpperCase() === "N") {
 				rebalanceAllowed = false;
 				break; // Exit the loop if rebalancing is not allowed
 			} else {
-				console.log("Invalid input. Please enter 'Y' for Yes or 'N' for No.");
+				console.log(
+					"Invalid input. Please enter 'Y' for Yes or 'N' for No.",
+				);
 				// Loop will continue asking the rebalance permission question
 			}
 		}
 
 		spreadbps = spread * 100;
 		// Calculate trade size in lamports based on the token
-		if (selectedTradeToken.toLowerCase() === "a") {			
+		if (selectedTradeToken.toLowerCase() === "a") {
 			tradeSizeInLamports = tradeSize * Math.pow(10, selectedDecimalsA);
-			
+
 			console.log(
 				`Your Token Selection for A - Symbol: ${selectedTokenA}, Address: ${selectedAddressA}`,
 			);
@@ -441,7 +448,7 @@ async function initialize() {
 		rl.close(); // Close the readline interface after question loops are done.
 
 		//First Price check during init
-		try {			
+		try {
 			const queryParams = {
 				inputMint: selectedAddressA,
 				outputMint: selectedAddressB,
@@ -462,7 +469,19 @@ async function initialize() {
 			sellOutput = tradeSizeInLamports;
 
 			init = true;
-			saveUserData(selectedTokenA, selectedAddressA, selectedDecimalsA, selectedTokenB, selectedAddressB, selectedDecimalsB, tradeSize, spread, rebalanceAllowed, rebalancePercentage, rebalanceSlippageBPS);
+			saveUserData(
+				selectedTokenA,
+				selectedAddressA,
+				selectedDecimalsA,
+				selectedTokenB,
+				selectedAddressB,
+				selectedDecimalsB,
+				tradeSize,
+				spread,
+				rebalanceAllowed,
+				rebalancePercentage,
+				rebalanceSlippageBPS,
+			);
 			console.log("\u{1F680} Starting Jupiter Gridbot");
 
 			let initialBalances = await getBalance(
@@ -482,7 +501,7 @@ async function initialize() {
 				`\n${selectedTokenB} Balance: ${initBalanceB}, worth $${initUsdBalanceB.toFixed(2)}`,
 				`\nTotal User Balance: $${initUsdTotalBalance.toFixed(2)}`,
 				`\nTest Token Rebalance Value A: ${initialBalances.tokenARebalanceValue}`,
-				`\nTest Token Rebalance Value B: ${initialBalances.tokenBRebalanceValue}`
+				`\nTest Token Rebalance Value B: ${initialBalances.tokenBRebalanceValue}`,
 			);
 			setOrders(tradeSizeInLamports);
 		} catch (error) {
@@ -512,7 +531,7 @@ async function getBalance(
 	async function getSOLBalanceAndUSDC() {
 		const lamports = await connection.getBalance(wallet.publicKey);
 		const solBalance = lamports / solanaWeb3.LAMPORTS_PER_SOL;
-		if (solBalance === 0){
+		if (solBalance === 0) {
 			console.log(`You do not have any SOL, please check and try again.`);
 			process.exit(0);
 		}
@@ -529,7 +548,8 @@ async function getBalance(
 					params: queryParams,
 				});
 				usdBalance = response.data.outAmount / Math.pow(10, 6) || 0;
-				tokenRebalanceValue = response.data.outAmount / (lamports / Math.pow(10, 3));
+				tokenRebalanceValue =
+					response.data.outAmount / (lamports / Math.pow(10, 3));
 			} catch (error) {
 				console.error("Error fetching USDC equivalent for SOL:", error);
 			}
@@ -557,8 +577,10 @@ async function getBalance(
 				tokenAccounts.value[0].account.data.parsed.info.tokenAmount
 					.uiAmount;
 			let usdBalance = 0;
-			if (balance === 0){
-				console.log(`You do not have a balance for ${mintAddress}, please check and try again.`);
+			if (balance === 0) {
+				console.log(
+					`You do not have a balance for ${mintAddress}, please check and try again.`,
+				);
 				process.exit(0);
 			}
 			if (mintAddress !== USDC_MINT_ADDRESS) {
@@ -575,20 +597,23 @@ async function getBalance(
 					});
 					//Save USD Balance and adjust down for Lamports
 					usdBalance = response.data.outAmount / Math.pow(10, 6);
-					tokenRebalanceValue = response.data.outAmount / (balance * Math.pow(10, 6));
+					tokenRebalanceValue =
+						response.data.outAmount / (balance * Math.pow(10, 6));
 				} catch (error) {
 					console.error("Error fetching USDC equivalent:", error);
 					usdBalance = 1;
 				}
 			} else {
 				usdBalance = balance; // If the token is USDC, its balance is its USD equivalent
-				if (usdBalance === 0){
-					console.log(`You do not have any USDC, please check and try again.`);
+				if (usdBalance === 0) {
+					console.log(
+						`You do not have any USDC, please check and try again.`,
+					);
 					process.exit(0);
 				}
 				tokenRebalanceValue = 1;
 			}
-			
+
 			return { balance, usdBalance, tokenRebalanceValue };
 		} else {
 			return { balance: 0, usdBalance: 0, tokenRebalanceValue: null };
@@ -617,7 +642,7 @@ async function getBalance(
 		tokenARebalanceValue: resultA.tokenRebalanceValue,
 		balanceB: resultB.balance,
 		usdBalanceB: resultB.usdBalance,
-		tokenBRebalanceValue: resultB.tokenRebalanceValue
+		tokenBRebalanceValue: resultB.tokenRebalanceValue,
 	};
 }
 
@@ -790,7 +815,7 @@ async function setOrders() {
 			selectedAddressA,
 			base2,
 			1000,
-		);		
+		);
 		//Pause to allow Jupiter to store orders on chain
 		console.log(
 			"Pause for 5 seconds to allow orders to finalize on blockchain.",
@@ -898,51 +923,67 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			}
 		}
 	}
-};
+}
 
-async function rebalanceTokens(inputMint, outputMint, rebalanceValue, rebalanceSlippageBPS, quoteurl) {
-    const rebalanceLamports = Math.floor(rebalanceValue);
-    console.log(`Rebalancing Tokens ${selectedTokenA} and ${selectedTokenB}`);
-    try {
-        // Fetch the quote
-        const quoteResponse = await axios.get(`${quoteurl}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rebalanceLamports}&slippageBps=${rebalanceSlippageBPS}`);
-        //console.log(quoteResponse.data);
+async function rebalanceTokens(
+	inputMint,
+	outputMint,
+	rebalanceValue,
+	rebalanceSlippageBPS,
+	quoteurl,
+) {
+	const rebalanceLamports = Math.floor(rebalanceValue);
+	console.log(`Rebalancing Tokens ${selectedTokenA} and ${selectedTokenB}`);
+	try {
+		// Fetch the quote
+		const quoteResponse = await axios.get(
+			`${quoteurl}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rebalanceLamports}&slippageBps=${rebalanceSlippageBPS}`,
+		);
+		//console.log(quoteResponse.data);
 
-        const swapApiResponse = await fetch('https://quote-api.jup.ag/v6/swap', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                quoteResponse: quoteResponse.data,
-                userPublicKey: wallet.publicKey, // Keeping as wallet.publicKey as per your setup
-                wrapAndUnwrapSol: true,
-            }),
-        });
-        const swapData = await swapApiResponse.json();
+		const swapApiResponse = await fetch(
+			"https://quote-api.jup.ag/v6/swap",
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					quoteResponse: quoteResponse.data,
+					userPublicKey: wallet.publicKey, // Keeping as wallet.publicKey as per your setup
+					wrapAndUnwrapSol: true,
+				}),
+			},
+		);
+		const swapData = await swapApiResponse.json();
 
-        if (!swapData || !swapData.swapTransaction) {
-            throw new Error('Swap transaction data not found.');
-        }
-		
-        // Deserialize the transaction correctly for a versioned message
-        const swapTransactionBuffer = Buffer.from(swapData.swapTransaction, 'base64');
-        let transaction = VersionedTransaction.deserialize(swapTransactionBuffer); 
+		if (!swapData || !swapData.swapTransaction) {
+			throw new Error("Swap transaction data not found.");
+		}
+
+		// Deserialize the transaction correctly for a versioned message
+		const swapTransactionBuffer = Buffer.from(
+			swapData.swapTransaction,
+			"base64",
+		);
+		let transaction = VersionedTransaction.deserialize(
+			swapTransactionBuffer,
+		);
 		//console.log(transaction);
 		//sign it
 		transaction.sign([wallet.payer]);
-        //send it
-        const rawTransaction = transaction.serialize();
+		//send it
+		const rawTransaction = transaction.serialize();
 		const txid = await connection.sendRawTransaction(rawTransaction, {
 			skipPreflight: false,
-			maxRetries: 2
+			maxRetries: 2,
 		});
 		await connection.confirmTransaction(txid);
-        console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
-    } catch (error) {
-        console.error("Error during the transaction:", error);
-    }
-};
+		console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
+	} catch (error) {
+		console.error("Error during the transaction:", error);
+	}
+}
 
 async function checkOpenOrders() {
 	if (shutDown) return;
@@ -953,7 +994,7 @@ async function checkOpenOrders() {
 
 	// Make the JSON request
 	openOrders = await limitOrder.getOrders([
-		ownerFilter(wallet.publicKey, commitment),
+		ownerFilter(wallet.publicKey, "processed"),
 	]);
 
 	// Create an array to hold publicKey values
@@ -1021,28 +1062,34 @@ async function cancelOrder(checkArray) {
 					body: JSON.stringify(requestData),
 				},
 			);
-			
+
 			if (!response.ok) {
-				let errorDetails = '';
+				let errorDetails = "";
 				try {
 					// Attempt to read the response body
 					errorDetails = await response.text(); // Use .json() if the server sends JSON error responses
 				} catch (bodyError) {
-					errorDetails = 'Failed to read error response body.';
+					errorDetails = "Failed to read error response body.";
 				}
-			
+
 				const errorInfo = `
 					HTTP Error Response:
 					Status: ${response.status} ${response.statusText}
 					Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}
 					Body: ${errorDetails}
 				`;
-			
+
 				if (response.status === 500) {
-					console.error('Server error with detailed response:', errorInfo);
+					console.error(
+						"Server error with detailed response:",
+						errorInfo,
+					);
 					throw new Error(`Server error! Status: ${response.status}`);
 				} else {
-					console.error('HTTP error with detailed response:', errorInfo);
+					console.error(
+						"HTTP error with detailed response:",
+						errorInfo,
+					);
 					spinner.fail(`HTTP error! Status: ${response.status}`);
 					throw new Error(`HTTP error! Status: ${response.status}`);
 				}
@@ -1087,30 +1134,55 @@ async function cancelOrder(checkArray) {
 			currUSDBalanceA = currentBalances.usdBalanceA;
 			currUSDBalanceB = currentBalances.usdBalanceB;
 			currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
-				let percentageOfA = 0;
-				let percentageOfB = 0;
-				if (currUsdTotalBalance > 0) {
+			let percentageOfA = 0;
+			let percentageOfB = 0;
+			if (currUsdTotalBalance > 0) {
 				percentageOfA = (currUSDBalanceA / currUsdTotalBalance) * 100;
-				percentageOfB = (currUSDBalanceB / currUsdTotalBalance) * 100;}
+				percentageOfB = (currUSDBalanceB / currUsdTotalBalance) * 100;
+			}
 			tokenARebalanceValue = currentBalances.tokenARebalanceValue;
 			tokenBRebalanceValue = currentBalances.tokenBRebalanceValue;
 
 			//Rebalancing allowed check
-			if (rebalanceAllowed && (percentageOfA < rebalancePercentage || percentageOfB < rebalancePercentage)) {
+			if (
+				rebalanceAllowed &&
+				(percentageOfA < rebalancePercentage ||
+					percentageOfB < rebalancePercentage)
+			) {
 				let targetUsdBalancePerToken = currUsdTotalBalance / 2;
 				let adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
 				let adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
-			
+
 				if (adjustmentA < 0) {
 					// Token A's USD balance is above the target, calculate how much Token A to sell
-					let rebalanceValue = (Math.abs(adjustmentA) / tokenARebalanceValue) * Math.pow(10, selectedDecimalsA);
-					console.log(`Need to sell ${rebalanceValue} Lamports of Token A to balance.`);
-					await rebalanceTokens(selectedAddressA, selectedAddressB, rebalanceValue, rebalanceSlippageBPS, quoteurl);
+					let rebalanceValue =
+						(Math.abs(adjustmentA) / tokenARebalanceValue) *
+						Math.pow(10, selectedDecimalsA);
+					console.log(
+						`Need to sell ${rebalanceValue} Lamports of Token A to balance.`,
+					);
+					await rebalanceTokens(
+						selectedAddressA,
+						selectedAddressB,
+						rebalanceValue,
+						rebalanceSlippageBPS,
+						quoteurl,
+					);
 				} else if (adjustmentB < 0) {
 					// Token B's USD balance is above the target, calculate how much Token B to sell
-					let rebalanceValue = (Math.abs(adjustmentB) / tokenBRebalanceValue) * Math.pow(10, selectedDecimalsB);
-					console.log(`Need to sell ${rebalanceValue} Lamports of Token B to balance.`);
-					await rebalanceTokens(selectedAddressB, selectedAddressA, rebalanceValue, rebalanceSlippageBPS, quoteurl);
+					let rebalanceValue =
+						(Math.abs(adjustmentB) / tokenBRebalanceValue) *
+						Math.pow(10, selectedDecimalsB);
+					console.log(
+						`Need to sell ${rebalanceValue} Lamports of Token B to balance.`,
+					);
+					await rebalanceTokens(
+						selectedAddressB,
+						selectedAddressA,
+						rebalanceValue,
+						rebalanceSlippageBPS,
+						quoteurl,
+					);
 				}
 			}
 			balancePercentageChange =
@@ -1131,8 +1203,7 @@ async function cancelOrder(checkArray) {
 				`${selectedTokenB} profit since start: $${profitB.toFixed(2)}`,
 			);
 
-
-			// Reset new orders			
+			// Reset new orders
 			setOrders();
 
 			// If the request was successful, break out of the loop
@@ -1174,7 +1245,7 @@ process.on("SIGINT", () => {
 
 		// Make the JSON request
 		openOrders = await limitOrder.getOrders([
-			ownerFilter(wallet.publicKey, commitment),
+			ownerFilter(wallet.publicKey, "processed"),
 		]);
 
 		checkArray = openOrders.map((order) => order.publicKey.toString());

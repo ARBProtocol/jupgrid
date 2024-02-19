@@ -3,7 +3,6 @@ const { Wallet } = require("@project-serum/anchor");
 const bs58 = require("bs58");
 const fs = require("fs");
 const dotenv = require("dotenv");
-const fsp = require("fs").promises;
 
 function envload() {
 	const envFilePath = ".env";
@@ -12,7 +11,7 @@ function envload() {
 		if (!fs.existsSync(envFilePath)) {
 			fs.writeFileSync(envFilePath, defaultEnvContent, "utf8");
 			console.log(
-				".env file created. Please fill in your private information, and start JupGrid again."
+				".env file created. Please fill in your private information, and start JupGrid again.",
 			);
 			process.exit(0);
 		}
@@ -20,14 +19,14 @@ function envload() {
 	} catch (error) {
 		console.error(
 			"An error occurred while checking or creating the .env file:",
-			error
+			error,
 		);
 		process.exit(1);
 	}
 	dotenv.config();
 	if (!process.env.PRIVATE_KEY || !process.env.RPC_URL) {
 		console.error(
-			"Missing required environment variables in .env file. Please ensure PRIVATE_KEY and RPC_URL are set."
+			"Missing required environment variables in .env file. Please ensure PRIVATE_KEY and RPC_URL are set.",
 		);
 		process.exit(1);
 	}
@@ -35,36 +34,67 @@ function envload() {
 	return [
 		new Wallet(
 			solanaWeb3.Keypair.fromSecretKey(
-				bs58.decode(process.env.PRIVATE_KEY)
-			)
+				bs58.decode(process.env.PRIVATE_KEY),
+			),
 		),
 		process.env.RPC_URL,
 	];
 }
 
-
-function saveUserData(selectedTokenA, selectedAddressA, selectedDecimalsA, selectedTokenB, selectedAddressB, selectedDecimalsB, tradeSize, spread, rebalanceAllowed, rebalancePercentage, rebalanceSlippageBPS) {
+function saveUserData(
+	selectedTokenA,
+	selectedAddressA,
+	selectedDecimalsA,
+	selectedTokenB,
+	selectedAddressB,
+	selectedDecimalsB,
+	tradeSize,
+	spread,
+	rebalanceAllowed,
+	rebalancePercentage,
+	rebalanceSlippageBPS,
+) {
 	try {
-		fs.writeFileSync("userData.json", JSON.stringify({
-			selectedTokenA,
-			selectedAddressA,
-			selectedDecimalsA,
-			selectedTokenB,
-			selectedAddressB,
-			selectedDecimalsB,
-			tradeSize,
-			spread,
-			rebalanceAllowed,
-			rebalancePercentage,
-			rebalanceSlippageBPS
-		}, null, 4));
+		fs.writeFileSync(
+			"userData.json",
+			JSON.stringify(
+				{
+					selectedTokenA,
+					selectedAddressA,
+					selectedDecimalsA,
+					selectedTokenB,
+					selectedAddressB,
+					selectedDecimalsB,
+					tradeSize,
+					spread,
+					rebalanceAllowed,
+					rebalancePercentage,
+					rebalanceSlippageBPS,
+				},
+				null,
+				4,
+			),
+		);
 		console.log("User data saved successfully.");
 	} catch (error) {
 		console.error("Error saving user data:", error);
 	}
 }
 
+function loadUserData() {
+	try {
+		const data = fs.readFileSync("userData.json");
+		const userData = JSON.parse(data);
+		return userData;
+	} catch (error) {
+		console.log("No user data found. Starting with fresh inputs.");
+		initialize();
+	}
+}
+
+
 module.exports = {
 	envload,
-	saveUserData
-}
+	saveUserData,
+	loadUserData
+};
