@@ -3,6 +3,7 @@ const { Wallet } = require("@project-serum/anchor");
 const bs58 = require("bs58");
 const fs = require("fs");
 const dotenv = require("dotenv");
+const fsp = require("fs").promises;
 
 function envload() {
 	const envFilePath = ".env";
