@@ -985,6 +985,7 @@ async function rebalanceTokens(
 				}),
 			},
 		);
+		const { blockhash } = await connection.getLatestBlockhash();
 		const swapData = await swapApiResponse.json();
 
 		if (!swapData || !swapData.swapTransaction) {
@@ -1001,6 +1002,7 @@ async function rebalanceTokens(
 		);
 		//console.log(transaction);
 		//sign it
+		transaction.recentBlockhash = blockhash;
 		transaction.sign([wallet.payer]);
 		//send it
 		const rawTransaction = transaction.serialize();
@@ -1261,95 +1263,93 @@ async function cancelOrder(checkArray) {
 };
 
 process.on("SIGINT", () => {
-	//console.clear();
-	console.log("CTRL+C detected! Performing cleanup...");
-	shutDown = true;
+	console.clear();
+    console.log("CTRL+C detected! Performing cleanup...");
+    shutDown = true;
 
-	(async () => {
-		// Dynamically import ora
-		const ora = (await import("ora")).default;
-		const spinner = ora(
-			"Preparing to close Jupgrid - Cancelling Orders",
-		).start();
+    (async () => {
+        // Dynamically import ora
+        const ora = (await import("ora")).default;
+        const spinner = ora("Preparing to close Jupgrid - Cancelling Orders").start();
 
-		// Retry parameters
-		const maxRetries = 30; // Maximum number of retries
-		const cpause = (ms) =>
-			new Promise((resolve) => setTimeout(resolve, ms));
-		
-		for (let attempt = 1; attempt <= maxRetries; attempt++) {
-			openOrders.length = 0;
-			checkArray.length = 0;
+        // Retry parameters
+        const maxRetries = 30; // Maximum number of retries
+        const cpause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            openOrders.length = 0;
+            checkArray.length = 0;
 
-			// Make the JSON request
-			openOrders = await limitOrder.getOrders([
-				ownerFilter(wallet.publicKey, "processed"),
-			]);
+            // Make the JSON request
+            openOrders = await limitOrder.getOrders([
+                ownerFilter(wallet.publicKey, "processed"),
+            ]);
 
-			checkArray = openOrders.map((order) => order.publicKey.toString());
-			if (checkArray.length === 0) {
-				console.log("\nNo open orders found, exiting now.")
-				process.exit(0);
-			} else try {
-				const requestData = {
-					owner: wallet.publicKey.toString(),
-					feePayer: wallet.publicKey.toString(),
-					orders: Array.from(checkArray),
-				};
+            checkArray = openOrders.map((order) => order.publicKey.toString());
+            if (checkArray.length === 0) {
+                spinner.succeed("No open orders found, exiting now.");
+                process.exit(0);
+            } else {
+                try {
+                    // Update spinner text instead of using console.log
+                    spinner.text = "Please Wait";
 
-				console.log("\n- Please Wait");
-				const response = await fetch(
-					"https://jup.ag/api/limit/v1/cancelOrders",
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify(requestData),
-					},
-				);
+                    const requestData = {
+                        owner: wallet.publicKey.toString(),
+                        feePayer: wallet.publicKey.toString(),
+                        orders: Array.from(checkArray),
+                    };
 
-				if (!response.ok) {
-					throw new Error(`HTTP error! Status: ${response.status}`);
-				}
+                    const response = await fetch(
+                        "https://jup.ag/api/limit/v1/cancelOrders",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(requestData),
+                        },
+                    );
 
-				const responseData = await response.json();
-				const transactionBase64 = responseData.tx;
-				const transactionBuf = Buffer.from(transactionBase64, "base64");
-				const transaction = solanaWeb3.Transaction.from(transactionBuf);
-				const signers = [wallet.payer];
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
 
-				const txid = await solanaWeb3.sendAndConfirmTransaction(
-					connection,
-					transaction,
-					signers,
-					{
-						skipPreflight: false,
-						preflightCommitment: "processed",
-						commitment: "confirmed",
-					},
-				);
+                    const responseData = await response.json();
+                    const transactionBase64 = responseData.tx;
+                    const transactionBuf = Buffer.from(transactionBase64, "base64");
+                    const transaction = solanaWeb3.Transaction.from(transactionBuf);
+                    const signers = [wallet.payer];
 
-				spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
-				console.log(
-					`Transaction Receipt: https://solscan.io/tx/${txid}`,
-				);
-				process.exit(0); // Ensure graceful exit
-			} catch (error) {
-				if (attempt === maxRetries) {
-					spinner.fail(
-						`Error canceling order after ${maxRetries} attempts: ${error.message}`,
-					);
-					console.error(
-						`Error canceling order/s: ${checkArray}:`,
-						error,
-					);
-					break; // Exit the loop after max retries
-				}
-				console.log("");
-				console.log(`Attempt ${attempt} failed, retrying...`);
-				await cpause(2000 * attempt); // Exponential backoff
-			}
-		}
-	})();
+                    const txid = await solanaWeb3.sendAndConfirmTransaction(
+                        connection,
+                        transaction,
+                        signers,
+                        {
+                            skipPreflight: false,
+                            preflightCommitment: "processed",
+                            commitment: "confirmed",
+                        },
+                    );
+
+                    spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
+                    console.log(`Transaction Receipt: https://solscan.io/tx/${txid}`);
+                    process.exit(0); // Ensure graceful exit
+                } catch (error) {
+                    if (attempt === maxRetries) {
+                        spinner.fail(`Error canceling order after ${maxRetries} attempts: ${error.message}`);
+                        console.error(`Error canceling order/s: ${checkArray}:`, error);
+                        break; // Exit the loop after max retries
+                    }
+                    // Use spinner.fail to indicate a failed attempt but keep the process alive for retries
+                    spinner.fail(`Attempt ${attempt} failed, retrying...`);
+                    await cpause(2000 * attempt); // Exponential backoff
+                    
+                    // Restart the spinner with the original message for the next attempt
+                    spinner.start("Preparing to close Jupgrid - Cancelling Orders");
+                }
+            }
+        }
+    })();
 });
+
