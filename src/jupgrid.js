@@ -215,6 +215,9 @@ async function initialize() {
 		) {
 			validRebalanceSlippage = true;
 		}
+		if (monitorDelay > 0) {
+			validMonitorDelay = true;
+		}
 
 		if (!fs.existsSync("tokens.txt")) {
 			await downloadTokensList();
@@ -434,16 +437,18 @@ async function initialize() {
 		}
 
 		// ask for monitor delay
-		const monitorDelayQuestion = await questionAsync(
-			`Enter the delay between price checks in milliseconds (default 2000ms): `,
-		);
-		const parsedMonitorDelay = parseInt(monitorDelayQuestion.trim());
-		if (!isNaN(parsedMonitorDelay) && parsedMonitorDelay > 0) {
-			monitorDelay = parsedMonitorDelay;
-		} else {
-			console.log(
-				"Invalid monitor delay. Please enter a valid number greater than 0.",
+		while (!validMonitorDelay) {
+			const monitorDelayQuestion = await questionAsync(
+				`Enter the delay between price checks in milliseconds (default 2000ms): `,
 			);
+			const parsedMonitorDelay = parseInt(monitorDelayQuestion.trim());
+			if (!isNaN(parsedMonitorDelay) && parsedMonitorDelay > 0) {
+				monitorDelay = parsedMonitorDelay;
+			} else {
+				console.log(
+					"Invalid monitor delay. Please enter a valid number greater than 0.",
+				);
+			}
 		}
 
 		spreadbps = spread * 100;
