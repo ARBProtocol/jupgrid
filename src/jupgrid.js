@@ -68,13 +68,17 @@ let {
 	profitA = null,
 	profitB = null,
 	totalProfit = null,
+	monitorDelay = null,
 	userData = {
 		selectedTokenA: null,
 		selectedTokenB: null,
 		tradeSize: null,
 		spread: null,
-	},
-	monitorDelay = 2000
+		rebalanceAllowed: null,
+		rebalancePercentage: null,
+		rebalanceSlippageBPS: null,
+		monitorDelay: null,
+	},	
 } = {};
 
 async function loadQuestion() {
@@ -103,7 +107,7 @@ async function loadQuestion() {
 								`Order Size (in ${userData.selectedAddressA}): ${userData.tradeSize}`,
 							);
 							console.log(`Spread: ${userData.spread}`);
-							console.log(`Monitoring delay: ${monitorDelay}ms`)
+							console.log(`Monitoring delay: ${userData.monitorDelay}ms`)
 							console.log(
 								`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`,
 							);
@@ -445,6 +449,7 @@ async function initialize() {
 			const parsedMonitorDelay = parseInt(monitorDelayQuestion.trim());
 			if (!isNaN(parsedMonitorDelay) && parsedMonitorDelay > 0) {
 				monitorDelay = parsedMonitorDelay;
+				validMonitorDelay = true;
 			} else {
 				console.log(
 					"Invalid monitor delay. Please enter a valid number greater than 0.",
@@ -507,7 +512,8 @@ async function initialize() {
 				rebalanceSlippageBPS,
 				monitorDelay
 			);
-			console.log("\u{1F680} Starting Jupiter Gridbot");
+			console.clear();
+			console.log("\n\u{1F680} Starting Jupgrid!");
 
 			let initialBalances = await getBalance(
 				wallet,
@@ -695,7 +701,7 @@ async function monitorPrice(
 ) {
 	if (shutDown) return;
 	console.clear();
-	console.log("Jupiter GridBot v0.1.0");
+	console.log("Jupgrid v0.2.01");
 	formatElapsedTime(startTime);
 	let retries = 0;
 
@@ -740,7 +746,7 @@ async function monitorPrice(
 				orderSuccess = 0;
 			} else {
 				console.log("2 open orders. Waiting for change.");
-				await delay(5000);
+				await delay(monitorDelay);
 				return monitorPrice(
 					selectedAddressA,
 					selectedAddressB,
@@ -762,9 +768,7 @@ async function monitorPrice(
 					"Maximum number of retries reached. Unable to retrieve data.",
 				);
 				return null;
-			}
-
-			await new Promise((resolve) => setTimeout(resolve, monitorDelay)); // Delay before retrying
+			}			
 		}
 	}
 }
@@ -819,7 +823,8 @@ async function setOrders() {
 		}
 
 		// Send the "buy" transactions
-		console.log("\u{1F4C9} Placing Buy Layer");
+		if (shutDown) return;
+		console.log("\u{1F4C9} Placing Buy Layer");		
 		await sendTransactionAsync(
 			buyInput,
 			buyOutput,
@@ -830,7 +835,8 @@ async function setOrders() {
 		);
 
 		// Send the "sell" transaction
-		console.log("\u{1F4C8} Placing Sell Layer");
+		if (shutDown) return;
+		console.log("\u{1F4C8} Placing Sell Layer");		
 		await sendTransactionAsync(
 			sellInput,
 			sellOutput,
@@ -846,7 +852,7 @@ async function setOrders() {
 
 		await delay(5000);
 
-		await monitorPrice(
+		monitorPrice(
 			selectedAddressA,
 			selectedAddressB,
 			tradeSizeInLamports,
@@ -955,6 +961,7 @@ async function rebalanceTokens(
 	rebalanceSlippageBPS,
 	quoteurl,
 ) {
+	if (shutDown) return;
 	const rebalanceLamports = Math.floor(rebalanceValue);
 	console.log(`Rebalancing Tokens ${selectedTokenA} and ${selectedTokenB}`);
 	try {
@@ -1008,8 +1015,7 @@ async function rebalanceTokens(
 	}
 }
 
-async function checkOpenOrders() {
-	if (shutDown) return;
+async function checkOpenOrders() {	
 	// Record the start time
 	const startTime = new Date();
 	openOrders.length = 0;
@@ -1058,6 +1064,10 @@ async function checkOpenOrders() {
 
 async function cancelOrder(checkArray) {
 	// Dynamically import
+	if (checkArray.length === 0){
+		setOrders()
+		return;
+	}
 	const ora = (await import("ora")).default;
 	const spinner = ora("Cancelling orders...").start();
 
@@ -1182,7 +1192,7 @@ async function cancelOrder(checkArray) {
 						(Math.abs(adjustmentA) / tokenARebalanceValue) *
 						Math.pow(10, selectedDecimalsA);
 					console.log(
-						`Need to sell ${rebalanceValue} Lamports of Token A to balance.`,
+						`Need to sell ${rebalanceValue} Lamports of ${selectedTokenA} to balance.`,
 					);
 					await rebalanceTokens(
 						selectedAddressA,
@@ -1197,7 +1207,7 @@ async function cancelOrder(checkArray) {
 						(Math.abs(adjustmentB) / tokenBRebalanceValue) *
 						Math.pow(10, selectedDecimalsB);
 					console.log(
-						`Need to sell ${rebalanceValue} Lamports of Token B to balance.`,
+						`Need to sell ${rebalanceValue} Lamports of ${selectedTokenB} to balance.`,
 					);
 					await rebalanceTokens(
 						selectedAddressB,
@@ -1234,7 +1244,7 @@ async function cancelOrder(checkArray) {
 		} catch (error) {
 			if (attempt === maxRetries) {
 				spinner.fail(
-					`Error canceling order after ${maxRetries} attempts: ${error.message}`,
+					`Error canceling order after ${maxRetries} attempts: ${error.message}`,					
 				);
 				console.error(`Error canceling order/s: ${checkArray}:`, error);
 				break; // Exit the loop and function after max retries
@@ -1243,9 +1253,12 @@ async function cancelOrder(checkArray) {
 			console.log(`Attempt ${attempt} failed, retrying...`);
 			console.log(error);
 			await cpause(2000 * attempt); // Exponential backoff
+
+			console.log("Checking for changes in orders.")
+			await checkOpenOrders()
 		}
-	}
-}
+	}	
+};
 
 process.on("SIGINT", () => {
 	//console.clear();
@@ -1256,34 +1269,35 @@ process.on("SIGINT", () => {
 		// Dynamically import ora
 		const ora = (await import("ora")).default;
 		const spinner = ora(
-			"Preparing to close Jupiter GridBot - Cancelling Orders",
+			"Preparing to close Jupgrid - Cancelling Orders",
 		).start();
 
 		// Retry parameters
 		const maxRetries = 30; // Maximum number of retries
 		const cpause = (ms) =>
 			new Promise((resolve) => setTimeout(resolve, ms));
-		openOrders.length = 0;
-		checkArray.length = 0;
-
-		// Make the JSON request
-		openOrders = await limitOrder.getOrders([
-			ownerFilter(wallet.publicKey, "processed"),
-		]);
-
-		checkArray = openOrders.map((order) => order.publicKey.toString());
-		if (checkArray.length === 0) {
-			process.exit(0);
-		}
+		
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
-			try {
+			openOrders.length = 0;
+			checkArray.length = 0;
+
+			// Make the JSON request
+			openOrders = await limitOrder.getOrders([
+				ownerFilter(wallet.publicKey, "processed"),
+			]);
+
+			checkArray = openOrders.map((order) => order.publicKey.toString());
+			if (checkArray.length === 0) {
+				console.log("\nNo open orders found, exiting now.")
+				process.exit(0);
+			} else try {
 				const requestData = {
 					owner: wallet.publicKey.toString(),
 					feePayer: wallet.publicKey.toString(),
 					orders: Array.from(checkArray),
 				};
 
-				console.log(" - Please Wait");
+				console.log("\n- Please Wait");
 				const response = await fetch(
 					"https://jup.ag/api/limit/v1/cancelOrders",
 					{
