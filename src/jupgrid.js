@@ -220,7 +220,7 @@ async function initialize() {
 			validRebalanceSlippage = true;
 		}
 		validMonitorDelay = false;
-		if (monitorDelay > 0) {
+		if (monitorDelay > 5000) {
 			validMonitorDelay = true;
 		}
 
@@ -444,15 +444,15 @@ async function initialize() {
 		// ask for monitor delay
 		while (!validMonitorDelay) {
 			const monitorDelayQuestion = await questionAsync(
-				`Enter the delay between price checks in milliseconds (default 2000ms): `,
+				`Enter the delay between price checks in milliseconds (minimum 5000ms): `,
 			);
 			const parsedMonitorDelay = parseInt(monitorDelayQuestion.trim());
-			if (!isNaN(parsedMonitorDelay) && parsedMonitorDelay > 0) {
+			if (!isNaN(parsedMonitorDelay) && parsedMonitorDelay >= 5000) {
 				monitorDelay = parsedMonitorDelay;
 				validMonitorDelay = true;
 			} else {
 				console.log(
-					"Invalid monitor delay. Please enter a valid number greater than 0.",
+					"Invalid monitor delay. Please enter a valid number greater than or equal to 5000.",
 				);
 			}
 		}
@@ -733,7 +733,7 @@ async function monitorPrice(
 			if (checkArray.length !== 2) {
 				const action =
 					checkArray.length === 0
-						? "Orders Reset Succesfully, Resetting price points and placing new orders."
+						? "0 Orders found. Resetting."
 						: checkArray.length > 2
 							? "More than 2 open orders. Closing all orders and Resetting."
 							: "Less than 2 open orders. Resetting price points and placing new orders.";
@@ -760,7 +760,7 @@ async function monitorPrice(
 			console.error(
 				`Error: Connection or Token Data Error (Attempt ${retries + 1} of ${maxRetries})`,
 			);
-			console.log(error);
+			//console.log(error);
 			retries++;
 
 			if (retries === maxRetries) {
@@ -980,11 +980,12 @@ async function rebalanceTokens(
 				},
 				body: JSON.stringify({
 					quoteResponse: quoteResponse.data,
-					userPublicKey: wallet.publicKey, // Keeping as wallet.publicKey as per your setup
-					wrapAndUnwrapSol: true,
+					userPublicKey: wallet.publicKey,
+					wrapAndUnwrapSol: true,	
 				}),
 			},
-		);
+		);	
+		
 		const { blockhash } = await connection.getLatestBlockhash();
 		const swapData = await swapApiResponse.json();
 
@@ -1001,20 +1002,21 @@ async function rebalanceTokens(
 			swapTransactionBuffer,
 		);
 		//console.log(transaction);
-		//sign it
+		
 		transaction.recentBlockhash = blockhash;
 		transaction.sign([wallet.payer]);
-		//send it
-		const rawTransaction = transaction.serialize();
-		const txid = await connection.sendRawTransaction(rawTransaction, {
-			skipPreflight: false,
-			maxRetries: 2,
-		});
-		await connection.confirmTransaction(txid);
-		console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
-	} catch (error) {
-		console.error("Error during the transaction:", error);
-	}
+		// Send it
+        const rawTransaction = transaction.serialize();
+        const txid = await connection.sendRawTransaction(rawTransaction, {
+            skipPreflight: false,
+            preflightCommitment: "confirmed",
+			maxRetries: 5,
+        });
+        await connection.confirmTransaction(txid, "confirmed");
+        console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
+    } catch (error) {
+        console.error("Error during the transaction:", error);
+    }
 }
 
 async function checkOpenOrders() {	
@@ -1194,7 +1196,7 @@ async function cancelOrder(checkArray) {
 						(Math.abs(adjustmentA) / tokenARebalanceValue) *
 						Math.pow(10, selectedDecimalsA);
 					console.log(
-						`Need to sell ${rebalanceValue} Lamports of ${selectedTokenA} to balance.`,
+						`Need to sell ${rebalanceValue / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} to balance.`,
 					);
 					await rebalanceTokens(
 						selectedAddressA,
@@ -1209,7 +1211,7 @@ async function cancelOrder(checkArray) {
 						(Math.abs(adjustmentB) / tokenBRebalanceValue) *
 						Math.pow(10, selectedDecimalsB);
 					console.log(
-						`Need to sell ${rebalanceValue} Lamports of ${selectedTokenB} to balance.`,
+						`Need to sell ${rebalanceValue / Math.pow(10, selectedDecimalsB)} ${selectedTokenB} to balance.`,
 					);
 					await rebalanceTokens(
 						selectedAddressB,
@@ -1343,7 +1345,7 @@ process.on("SIGINT", () => {
                     }
                     // Use spinner.fail to indicate a failed attempt but keep the process alive for retries
                     spinner.fail(`Attempt ${attempt} failed, retrying...`);
-                    await cpause(2000 * attempt); // Exponential backoff
+                    await cpause(5000); // 5 sec pause
                     
                     // Restart the spinner with the original message for the next attempt
                     spinner.start("Preparing to close Jupgrid - Cancelling Orders");
