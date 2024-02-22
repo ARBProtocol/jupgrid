@@ -1263,8 +1263,6 @@ process.on("SIGINT", () => {
 	console.log("CTRL+C detected! Performing cleanup...");
 	shutDown = true;
 
-	cancelOrder(checkArray);
-
 	(async () => {
 		// Dynamically import ora
 		const ora = (await import("ora")).default;
