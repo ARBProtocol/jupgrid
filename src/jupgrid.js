@@ -49,6 +49,10 @@ let {
 	initUsdBalanceB = 0,
 	currBalanceA = 0,
 	currBalanceB = 0,
+	currCalcBalA = 0,
+	currCalcBalB = 0,
+	prevBalA = 0,
+	prevBalB = 0,
 	currUSDBalanceA = 0,
 	currUSDBalanceB = 0,
 	initUsdTotalBalance = 0,
@@ -69,6 +73,8 @@ let {
 	profitB = null,
 	totalProfit = null,
 	monitorDelay = null,
+	buyKey = null,
+	sellKey = null,
 	userData = {
 		selectedTokenA: null,
 		selectedTokenB: null,
@@ -614,7 +620,7 @@ async function getBalance(
 				const queryParams = {
 					inputMint: mintAddress,
 					outputMint: USDC_MINT_ADDRESS,
-					amount: balance * Math.pow(10, decimals),
+					amount: Math.floor(balance * Math.pow(10, decimals)),					
 					slippageBps: 0,
 				};
 
@@ -665,9 +671,11 @@ async function getBalance(
 
 	return {
 		balanceA: resultA.balance,
+		prevBalA: resultA.balance,
 		usdBalanceA: resultA.usdBalance,
 		tokenARebalanceValue: resultA.tokenRebalanceValue,
 		balanceB: resultB.balance,
+		prevBalB: resultB.balance,
 		usdBalanceB: resultB.usdBalance,
 		tokenBRebalanceValue: resultB.tokenRebalanceValue,
 	};
@@ -728,7 +736,71 @@ async function monitorPrice(
 
 			await checkOpenOrders();
 
-			if (checkArray.length !== 2) {
+			if (checkArray.length !== 2) {				
+				let missingKeys = [];
+			
+				// Handling different states based on the length of checkArray
+				if (checkArray.length === 0) {
+					console.log("No orders found. Resetting.");
+					await recalculateLayers(
+						tradeSizeInLamports,
+						spreadbps,
+						newPrice,
+					);
+				} else if (checkArray.length === 1) {
+					// Identify which key(s) are missing
+					if (!checkArray.includes(buyKey)) {
+						missingKeys.push('Buy Key');						
+						//do balance calcs for a buy order A comes Down, B comes Up
+						currCalcBalA = prevBalA - buyInput;
+						currCalcBalB = prevBalB + buyOutput;
+						console.log("Current Calculated Balance :", selectedTokenA,currCalcBalA)
+						console.log("Current Calculated Balance :", selectedTokenB,currCalcBalB)
+						prevBalA = currCalcBalA;
+						prevBalB = currCalcBalB;
+					}
+					if (!checkArray.includes(sellKey)) {
+						missingKeys.push('Sell Key');
+						currCalcBalA = prevBalA + sellInput;
+						currCalcBalB = prevBalB - sellOutput;
+						console.log(currCalcBalA)
+						console.log(currBalanceA)
+						console.log("Current Calculated Balance :", selectedTokenA,currCalcBalA)
+						console.log("Current Calculated Balance :", selectedTokenB,currCalcBalB)
+						prevBalA = currCalcBalA;
+						prevBalB = currCalcBalB;
+						//do balance calcs for a sell order
+					}
+					
+					// Determine the missing key for the action message
+					let missingKeyName = missingKeys[0]; // Since there will be exactly one missing key
+					console.log("Missing Key: " + missingKeyName + ". Resetting price points and placing new orders.");
+					await recalculateLayers(
+						tradeSizeInLamports,
+						spreadbps,
+						newPrice,
+					);
+				} else if (checkArray.length > 2) {
+					console.log("Excessive orders found, cancelling and resetting.");
+					await recalculateLayers(
+						tradeSizeInLamports,
+						spreadbps,
+						newPrice,
+					);
+				}				
+			} else {
+				console.log("2 open orders. Waiting for change.");
+				await delay(monitorDelay);
+				return monitorPrice(
+					selectedAddressA,
+					selectedAddressB,
+					tradeSizeInLamports,
+					maxRetries,
+				);
+			}			
+			
+			/* Keeping this for now just incase new check structure breaks and we need the old version quickly. :)
+			if (checkArray.length !== 2) {				
 				const action =
 					checkArray.length === 0
 						? "0 Orders found. Resetting."
@@ -740,8 +812,7 @@ async function monitorPrice(
 					tradeSizeInLamports,
 					spreadbps,
 					newPrice,
-				);
-				orderSuccess = 0;
+				);				
 			} else {
 				console.log("2 open orders. Waiting for change.");
 				await delay(monitorDelay);
@@ -751,7 +822,8 @@ async function monitorPrice(
 					tradeSizeInLamports,
 					maxRetries,
 				);
-			}
+			}			
+			*/
 
 			break; // Break the loop if we've successfully handled the price monitoring
 		} catch (error) {
@@ -782,8 +854,7 @@ async function recalculateLayers(tradeSizeInLamports, spreadbps, newPrice) {
 	//Get Lamports for Sell Output
 	sellOutput = tradeSizeInLamports;
 
-	await cancelOrder(checkArray, wallet);
-	orderSuccess = 0;
+	await cancelOrder(checkArray, wallet);	
 	recalcs++;
 }
 
@@ -791,7 +862,7 @@ async function setOrders() {
 	if (shutDown) return;
 	let base1 = Keypair.generate();
 	console.log("");
-	let base2 = Keypair.generate();
+	let base2 = Keypair.generate();	
 	try {
 		async function sendTransactionAsync(
 			input,
@@ -801,6 +872,7 @@ async function setOrders() {
 			base,
 			delay,
 		) {
+			let orderPubkey = null;
 			await new Promise((resolve) => {
 				setTimeout(async () => {
 					try {
@@ -811,6 +883,9 @@ async function setOrders() {
 							outputMint,
 							base,
 						);
+						if (transaction) {
+							orderPubkey = transaction.orderPubkey;
+						}
 						resolve();
 					} catch (error) {
 						console.error("Error sending transaction:", error);
@@ -818,12 +893,13 @@ async function setOrders() {
 					}
 				}, delay);
 			});
+			return orderPubkey;
 		}
 
 		// Send the "buy" transactions
 		if (shutDown) return;
 		console.log("\u{1F4C9} Placing Buy Layer");
-		await sendTransactionAsync(
+		const buyOrder = await sendTransactionAsync(
 			buyInput,
 			buyOutput,
 			selectedAddressA,
@@ -831,11 +907,14 @@ async function setOrders() {
 			base1,
 			1000,
 		);
+		if (buyOrder) {
+			buyKey = buyOrder;			
+		};
 
 		// Send the "sell" transaction
 		if (shutDown) return;
 		console.log("\u{1F4C8} Placing Sell Layer");
-		await sendTransactionAsync(
+		const sellOrder = await sendTransactionAsync(
 			sellInput,
 			sellOutput,
 			selectedAddressB,
@@ -843,6 +922,9 @@ async function setOrders() {
 			base2,
 			1000,
 		);
+		if (sellOrder) {
+			sellKey = sellOrder;
+		};
 		//Pause to allow Jupiter to store orders on chain
 		console.log(
 			"Pause for 5 seconds to allow orders to finalize on blockchain.",
@@ -892,14 +974,14 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 					}),
 				},
 			);
-
+			
 			if (!response.ok) {
 				throw new Error(
 					`Failed to create order: ${response.statusText}`,
 				);
 			}
 
-			const responseData = await response.json();
+			const responseData = await response.json();			
 			const { tx: encodedTransaction } = responseData;
 
 			// Deserialize the raw transaction
@@ -925,10 +1007,13 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 
 			spinner.succeed(`Transaction confirmed with ID: ${txid}`);
 			console.log(`https://solscan.io/tx/${txid}`);
-			console.log("Order Successful");
+			console.log("Order Successful");			
 			await delay(2000);
 
-			return txid; // Exit the loop on success
+			return {
+				txid: txid,
+				orderPubkey: responseData.orderPubkey,
+			 } // Exit the loop on success
 		} catch (error) {
 			spinner.fail(
 				`Attempt ${attempt} - Error in transaction: ${error.message}`,
