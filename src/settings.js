@@ -53,7 +53,7 @@ function saveUserData(
 	rebalanceAllowed,
 	rebalancePercentage,
 	rebalanceSlippageBPS,
-	monitorDelay
+	monitorDelay,
 ) {
 	try {
 		fs.writeFileSync(
@@ -71,7 +71,7 @@ function saveUserData(
 					rebalanceAllowed,
 					rebalancePercentage,
 					rebalanceSlippageBPS,
-					monitorDelay
+					monitorDelay,
 				},
 				null,
 				4,

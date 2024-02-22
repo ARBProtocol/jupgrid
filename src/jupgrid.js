@@ -78,7 +78,7 @@ let {
 		rebalancePercentage: null,
 		rebalanceSlippageBPS: null,
 		monitorDelay: null,
-	},	
+	},
 } = {};
 
 async function loadQuestion() {
@@ -107,7 +107,9 @@ async function loadQuestion() {
 								`Order Size (in ${userData.selectedAddressA}): ${userData.tradeSize}`,
 							);
 							console.log(`Spread: ${userData.spread}`);
-							console.log(`Monitoring delay: ${userData.monitorDelay}ms`)
+							console.log(
+								`Monitoring delay: ${userData.monitorDelay}ms`,
+							);
 							console.log(
 								`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`,
 							);
@@ -140,7 +142,7 @@ async function loadQuestion() {
 											rebalanceAllowed,
 											rebalancePercentage,
 											rebalanceSlippageBPS,
-											monitorDelay
+											monitorDelay,
 										} = userData);
 										console.log(
 											"Settings applied successfully!",
@@ -506,7 +508,7 @@ async function initialize() {
 				rebalanceAllowed,
 				rebalancePercentage,
 				rebalanceSlippageBPS,
-				monitorDelay
+				monitorDelay,
 			);
 			console.clear();
 			console.log("\n\u{1F680} Starting Jupgrid!");
@@ -764,7 +766,7 @@ async function monitorPrice(
 					"Maximum number of retries reached. Unable to retrieve data.",
 				);
 				return null;
-			}			
+			}
 		}
 	}
 }
@@ -820,7 +822,7 @@ async function setOrders() {
 
 		// Send the "buy" transactions
 		if (shutDown) return;
-		console.log("\u{1F4C9} Placing Buy Layer");		
+		console.log("\u{1F4C9} Placing Buy Layer");
 		await sendTransactionAsync(
 			buyInput,
 			buyOutput,
@@ -832,7 +834,7 @@ async function setOrders() {
 
 		// Send the "sell" transaction
 		if (shutDown) return;
-		console.log("\u{1F4C8} Placing Sell Layer");		
+		console.log("\u{1F4C8} Placing Sell Layer");
 		await sendTransactionAsync(
 			sellInput,
 			sellOutput,
@@ -848,11 +850,7 @@ async function setOrders() {
 
 		await delay(5000);
 
-		monitorPrice(
-			selectedAddressA,
-			selectedAddressB,
-			tradeSizeInLamports,
-		);
+		monitorPrice(selectedAddressA, selectedAddressB, tradeSizeInLamports);
 	} catch (error) {
 		console.error("Error:", error);
 	}
@@ -977,11 +975,11 @@ async function rebalanceTokens(
 				body: JSON.stringify({
 					quoteResponse: quoteResponse.data,
 					userPublicKey: wallet.publicKey,
-					wrapAndUnwrapSol: true,	
+					wrapAndUnwrapSol: true,
 				}),
 			},
-		);	
-		
+		);
+
 		const { blockhash } = await connection.getLatestBlockhash();
 		const swapData = await swapApiResponse.json();
 
@@ -998,24 +996,24 @@ async function rebalanceTokens(
 			swapTransactionBuffer,
 		);
 		//console.log(transaction);
-		
+
 		transaction.recentBlockhash = blockhash;
 		transaction.sign([wallet.payer]);
 		// Send it
-        const rawTransaction = transaction.serialize();
-        const txid = await connection.sendRawTransaction(rawTransaction, {
-            skipPreflight: false,
-            preflightCommitment: "confirmed",
+		const rawTransaction = transaction.serialize();
+		const txid = await connection.sendRawTransaction(rawTransaction, {
+			skipPreflight: false,
+			preflightCommitment: "confirmed",
 			maxRetries: 5,
-        });
-        await connection.confirmTransaction(txid, "confirmed");
-        console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
-    } catch (error) {
-        console.error("Error during the transaction:", error);
-    }
+		});
+		await connection.confirmTransaction(txid, "confirmed");
+		console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
+	} catch (error) {
+		console.error("Error during the transaction:", error);
+	}
 }
 
-async function checkOpenOrders() {	
+async function checkOpenOrders() {
 	// Record the start time
 	const startTime = new Date();
 	openOrders.length = 0;
@@ -1064,8 +1062,8 @@ async function checkOpenOrders() {
 
 async function cancelOrder(checkArray) {
 	// Dynamically import
-	if (checkArray.length === 0){
-		setOrders()
+	if (checkArray.length === 0) {
+		setOrders();
 		return;
 	}
 	const ora = (await import("ora")).default;
@@ -1244,7 +1242,7 @@ async function cancelOrder(checkArray) {
 		} catch (error) {
 			if (attempt === maxRetries) {
 				spinner.fail(
-					`Error canceling order after ${maxRetries} attempts: ${error.message}`,					
+					`Error canceling order after ${maxRetries} attempts: ${error.message}`,
 				);
 				console.error(`Error canceling order/s: ${checkArray}:`, error);
 				break; // Exit the loop and function after max retries
@@ -1254,100 +1252,119 @@ async function cancelOrder(checkArray) {
 			console.log(error);
 			await cpause(2000 * attempt); // Exponential backoff
 
-			console.log("Checking for changes in orders.")
-			await checkOpenOrders()
+			console.log("Checking for changes in orders.");
+			await checkOpenOrders();
 		}
-	}	
-};
+	}
+}
 
 process.on("SIGINT", () => {
 	console.clear();
-    console.log("CTRL+C detected! Performing cleanup...");
-    shutDown = true;
+	console.log("CTRL+C detected! Performing cleanup...");
+	shutDown = true;
 
-    (async () => {
-        // Dynamically import ora
-        const ora = (await import("ora")).default;
-        const spinner = ora("Preparing to close Jupgrid - Cancelling Orders").start();
+	(async () => {
+		// Dynamically import ora
+		const ora = (await import("ora")).default;
+		const spinner = ora(
+			"Preparing to close Jupgrid - Cancelling Orders",
+		).start();
 
-        // Retry parameters
-        const maxRetries = 30; // Maximum number of retries
-        const cpause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-        
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            openOrders.length = 0;
-            checkArray.length = 0;
+		// Retry parameters
+		const maxRetries = 30; // Maximum number of retries
+		const cpause = (ms) =>
+			new Promise((resolve) => setTimeout(resolve, ms));
 
-            // Make the JSON request
-            openOrders = await limitOrder.getOrders([
-                ownerFilter(wallet.publicKey, "processed"),
-            ]);
+		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			openOrders.length = 0;
+			checkArray.length = 0;
 
-            checkArray = openOrders.map((order) => order.publicKey.toString());
-            if (checkArray.length === 0) {
-                spinner.succeed("No open orders found, exiting now.");
-                process.exit(0);
-            } else {
-                try {
-                    // Update spinner text instead of using console.log
-                    spinner.text = "Please Wait";
+			// Make the JSON request
+			openOrders = await limitOrder.getOrders([
+				ownerFilter(wallet.publicKey, "processed"),
+			]);
 
-                    const requestData = {
-                        owner: wallet.publicKey.toString(),
-                        feePayer: wallet.publicKey.toString(),
-                        orders: Array.from(checkArray),
-                    };
+			checkArray = openOrders.map((order) => order.publicKey.toString());
+			if (checkArray.length === 0) {
+				spinner.succeed("No open orders found, exiting now.");
+				process.exit(0);
+			} else {
+				try {
+					// Update spinner text instead of using console.log
+					spinner.text = "Please Wait";
 
-                    const response = await fetch(
-                        "https://jup.ag/api/limit/v1/cancelOrders",
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify(requestData),
-                        },
-                    );
+					const requestData = {
+						owner: wallet.publicKey.toString(),
+						feePayer: wallet.publicKey.toString(),
+						orders: Array.from(checkArray),
+					};
 
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
+					const response = await fetch(
+						"https://jup.ag/api/limit/v1/cancelOrders",
+						{
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify(requestData),
+						},
+					);
 
-                    const responseData = await response.json();
-                    const transactionBase64 = responseData.tx;
-                    const transactionBuf = Buffer.from(transactionBase64, "base64");
-                    const transaction = solanaWeb3.Transaction.from(transactionBuf);
-                    const signers = [wallet.payer];
+					if (!response.ok) {
+						throw new Error(
+							`HTTP error! Status: ${response.status}`,
+						);
+					}
 
-                    const txid = await solanaWeb3.sendAndConfirmTransaction(
-                        connection,
-                        transaction,
-                        signers,
-                        {
-                            skipPreflight: false,
-                            preflightCommitment: "processed",
-                            commitment: "confirmed",
-                        },
-                    );
+					const responseData = await response.json();
+					const transactionBase64 = responseData.tx;
+					const transactionBuf = Buffer.from(
+						transactionBase64,
+						"base64",
+					);
+					const transaction =
+						solanaWeb3.Transaction.from(transactionBuf);
+					const signers = [wallet.payer];
 
-                    spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
-                    console.log(`Transaction Receipt: https://solscan.io/tx/${txid}`);
-                    process.exit(0); // Ensure graceful exit
-                } catch (error) {
-                    if (attempt === maxRetries) {
-                        spinner.fail(`Error canceling order after ${maxRetries} attempts: ${error.message}`);
-                        console.error(`Error canceling order/s: ${checkArray}:`, error);
-                        break; // Exit the loop after max retries
-                    }
-                    // Use spinner.fail to indicate a failed attempt but keep the process alive for retries
-                    spinner.fail(`Attempt ${attempt} failed, retrying...`);
-                    await cpause(5000); // 5 sec pause
-                    
-                    // Restart the spinner with the original message for the next attempt
-                    spinner.start("Preparing to close Jupgrid - Cancelling Orders");
-                }
-            }
-        }
-    })();
+					const txid = await solanaWeb3.sendAndConfirmTransaction(
+						connection,
+						transaction,
+						signers,
+						{
+							skipPreflight: false,
+							preflightCommitment: "processed",
+							commitment: "confirmed",
+						},
+					);
+
+					spinner.succeed(
+						`Cancellation Transaction Confirmed: ${txid}`,
+					);
+					console.log(
+						`Transaction Receipt: https://solscan.io/tx/${txid}`,
+					);
+					process.exit(0); // Ensure graceful exit
+				} catch (error) {
+					if (attempt === maxRetries) {
+						spinner.fail(
+							`Error canceling order after ${maxRetries} attempts: ${error.message}`,
+						);
+						console.error(
+							`Error canceling order/s: ${checkArray}:`,
+							error,
+						);
+						break; // Exit the loop after max retries
+					}
+					// Use spinner.fail to indicate a failed attempt but keep the process alive for retries
+					spinner.fail(`Attempt ${attempt} failed, retrying...`);
+					await cpause(5000); // 5 sec pause
+
+					// Restart the spinner with the original message for the next attempt
+					spinner.start(
+						"Preparing to close Jupgrid - Cancelling Orders",
+					);
+				}
+			}
+		}
+	})();
 });
-

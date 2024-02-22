@@ -9,12 +9,12 @@ Use of this bot/script is at your own risk. Use of this bot/script can lead to l
 
 ## Table of Contents
 
-- [Features](#features-)
-- [Installation](#installation-)
-- [Usage](#usage-)
-- [Configuration](#configuration-)
-- [Contributing](#contributing-)
-- [License](#license-)
+-   [Features](#features-)
+-   [Installation](#installation-)
+-   [Usage](#usage-)
+-   [Configuration](#configuration-)
+-   [Contributing](#contributing-)
+-   [License](#license-)
 
 ## Features ✨
 
@@ -51,10 +51,10 @@ This will generate a `.env` file where you will fill in your secure data.
     - Token A:
     - Token B:
     - Size (In Token A):
-	- Spread (% difference from current market price to orders):
+    - Spread (% difference from current market price to orders):
     - Rebalancing (Y/N)
-	- Rebalancing Threshold (% balance at which to Rebalance your holdings)-(User has $100 total, $80 in SOL and $20 USDC. Setting 20% or higher would rebalance you to approx 50/50)
-	- Rebalancing Slippage (The maximum allowed slippage at which your rebalance swap can have)
+    - Rebalancing Threshold (% balance at which to Rebalance your holdings)-(User has $100 total, $80 in SOL and $20 USDC. Setting 20% or higher would rebalance you to approx 50/50)
+    - Rebalancing Slippage (The maximum allowed slippage at which your rebalance swap can have)
 
 Jupgrid will then place one buy and one sell order based on the parameters you have set.
 

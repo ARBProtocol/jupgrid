@@ -40,5 +40,5 @@ module.exports = {
 	questionAsync,
 	rl,
 	downloadTokensList,
-	getTokens
+	getTokens,
 };
