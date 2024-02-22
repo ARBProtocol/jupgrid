@@ -5,7 +5,7 @@ const fetch = require("cross-fetch");
 const axios = require("axios");
 const fs = require("fs");
 const { envload, saveUserData, loadUserData } = require("./settings");
-const { delay, rl, questionAsync, getTokens } = require("./utils");
+const { delay, rl, questionAsync, downloadTokensList, getTokens } = require("./utils");
 
 let [wallet, rpcUrl] = envload();
 
@@ -1262,6 +1262,8 @@ process.on("SIGINT", () => {
 	console.clear();
 	console.log("CTRL+C detected! Performing cleanup...");
 	shutDown = true;
+
+	cancelOrder(checkArray);
 
 	(async () => {
 		// Dynamically import ora
