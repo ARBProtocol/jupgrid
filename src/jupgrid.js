@@ -5,7 +5,7 @@ const fetch = require("cross-fetch");
 const axios = require("axios");
 const fs = require("fs");
 const { envload, saveUserData, loadUserData } = require("./settings");
-const { delay, rl, questionAsync, downloadTokensList } = require("./utils");
+const { delay, rl, questionAsync, getTokens } = require("./utils");
 
 let [wallet, rpcUrl] = envload();
 
@@ -224,11 +224,7 @@ async function initialize() {
 			validMonitorDelay = true;
 		}
 
-		if (!fs.existsSync("tokens.txt")) {
-			await downloadTokensList();
-		}
-		const data = fs.readFileSync("tokens.txt");
-		tokens = JSON.parse(data);
+		tokens = await getTokens();
 
 		if (userData.selectedTokenA) {
 			const tokenAExists = tokens.some(

@@ -28,9 +28,17 @@ async function downloadTokensList() {
 	return data;
 }
 
+async function getTokens() {
+	if (!fs.existsSync("tokens.txt")) {
+		await downloadTokensList();
+	}
+	return JSON.parse(fs.readFileSync("tokens.txt"));
+}
+
 module.exports = {
 	delay,
 	questionAsync,
 	rl,
 	downloadTokensList,
+	getTokens
 };
