@@ -1,17 +1,7 @@
 const fs = require("fs");
 
-// Logs are saved as such as logs/[unixtimestamp].json
-/*
-{
-	"settings": {
-		// user settings object
-	}, 
-	"log": [
-		//trade objects
-	]
-}
-*/
-// trade objects hold a type (placement/closure), timestamp, order address,
+// Logs are saved as logs/[unixtimestamp].json and contain a settings object and a log array
+// trade objects hold a type (placed/closed), timestamp, order address,
 // input/output data (mint address + token value), as well as fee paid in lamports and slot
 /*
 {
@@ -51,8 +41,7 @@ class TradeLogger {
 	}
 
 	readLog() {
-		const data = fs.readFileSync(this.filename);
-		this.log = JSON.parse(data);
+		this.log = JSON.parse(fs.readFileSync(this.filename));
 	}
 
 	writeLog() {
