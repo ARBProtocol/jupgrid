@@ -235,7 +235,7 @@ async function initialize() {
 			validRebalanceSlippage = true;
 		}
 		validMonitorDelay = false;
-		if (monitorDelay > 5000) {
+		if (monitorDelay >= 5000) {
 			validMonitorDelay = true;
 		}
 
