@@ -23,6 +23,7 @@ const limitOrder = new LimitOrderProvider(connection);
 let shutDown = false;
 
 const quoteurl = "https://quote-api.jup.ag/v6/quote";
+const version = require("../package.json").version;
 let {
 	validTokenA = null,
 	validTokenB = null,
@@ -713,7 +714,7 @@ async function monitorPrice(
 ) {
 	if (shutDown) return;
 	console.clear();
-	console.log("Jupgrid v0.2.01");
+	console.log(`Jupgrid v${version}`);
 	formatElapsedTime(startTime);
 	let retries = 0;
 
@@ -827,38 +828,11 @@ async function monitorPrice(
 				);
 			}
 
-			/* Keeping this for now just incase new check structure breaks and we need the old version quickly. :)
-			if (checkArray.length !== 2) {				
-				const action =
-					checkArray.length === 0
-						? "0 Orders found. Resetting."
-						: checkArray.length > 2
-							? "More than 2 open orders. Closing all orders and Resetting."
-							: "Less than 2 open orders. Resetting price points and placing new orders.";
-				console.log(action);
-				await recalculateLayers(
-					tradeSizeInLamports,
-					spreadbps,
-					newPrice,
-				);				
-			} else {
-				console.log("2 open orders. Waiting for change.");
-				await delay(monitorDelay);
-				return monitorPrice(
-					selectedAddressA,
-					selectedAddressB,
-					tradeSizeInLamports,
-					maxRetries,
-				);
-			}			
-			*/
-
 			break; // Break the loop if we've successfully handled the price monitoring
 		} catch (error) {
 			console.error(
 				`Error: Connection or Token Data Error (Attempt ${retries + 1} of ${maxRetries})`,
 			);
-			//console.log(error);
 			retries++;
 
 			if (retries === maxRetries) {
