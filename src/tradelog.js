@@ -59,3 +59,7 @@ class TradeLogger {
 		this.writeLog();
 	}
 }
+
+module.exports = {
+	TradeLogger,
+};
