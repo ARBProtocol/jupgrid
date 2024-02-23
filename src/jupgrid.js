@@ -674,14 +674,13 @@ async function getBalance(
 		);
 		process.exit(0);
 	}
-
+		prevBalA = resultA.balance;
+		prevBalB = resultB.balance;
 	return {
-		balanceA: resultA.balance,
-		prevBalA: resultA.balance,
+		balanceA: resultA.balance,		
 		usdBalanceA: resultA.usdBalance,
 		tokenARebalanceValue: resultA.tokenRebalanceValue,
-		balanceB: resultB.balance,
-		prevBalB: resultB.balance,
+		balanceB: resultB.balance,		
 		usdBalanceB: resultB.usdBalance,
 		tokenBRebalanceValue: resultB.tokenRebalanceValue,
 	};
@@ -739,7 +738,6 @@ async function monitorPrice(
 			console.log(
 				`Buy Price : ${sellOutput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} For ${buyOutput / Math.pow(10, selectedDecimalsB)} ${selectedTokenB}\n`,
 			);
-
 			await checkOpenOrders();
 
 			if (checkArray.length !== 2) {
@@ -755,11 +753,11 @@ async function monitorPrice(
 					);
 				} else if (checkArray.length === 1) {
 					// Identify which key(s) are missing
+
 					if (!checkArray.includes(buyKey)) {
-						missingKeys.push("Buy Key");
-						//do balance calcs for a buy order A comes Down, B comes Up
-						currCalcBalA = prevBalA - buyInput;
-						currCalcBalB = prevBalB + buyOutput;
+						missingKeys.push("Buy Key");						
+						currCalcBalA = prevBalA - (buyInput / Math.pow(10, selectedDecimalsA));
+						currCalcBalB = prevBalB + (buyOutput / Math.pow(10, selectedDecimalsB));
 						console.log(
 							"Current Calculated Balance :",
 							selectedTokenA,
@@ -773,10 +771,11 @@ async function monitorPrice(
 						prevBalA = currCalcBalA;
 						prevBalB = currCalcBalB;
 					}
+
 					if (!checkArray.includes(sellKey)) {
 						missingKeys.push("Sell Key");
-						currCalcBalA = prevBalA + sellInput;
-						currCalcBalB = prevBalB - sellOutput;
+						currCalcBalA = prevBalA + (sellInput / Math.pow(10, selectedDecimalsA));
+						currCalcBalB = prevBalB - (sellOutput / Math.pow(10, selectedDecimalsB));
 						console.log(currCalcBalA);
 						console.log(currBalanceA);
 						console.log(
@@ -790,8 +789,7 @@ async function monitorPrice(
 							currCalcBalB,
 						);
 						prevBalA = currCalcBalA;
-						prevBalB = currCalcBalB;
-						//do balance calcs for a sell order
+						prevBalB = currCalcBalB;						
 					}
 
 					// Determine the missing key for the action message
@@ -1134,6 +1132,12 @@ async function checkOpenOrders() {
 		console.log("");
 		console.log(`Current Balance: $${currUsdTotalBalance.toFixed(2)}`);
 		console.log(`Start Balance: $${initUsdTotalBalance}`);
+		console.log(`-`);
+		console.log(`Current Calculated A Balance: ${currCalcBalA}`);
+		console.log(`Current Calculated B Balance: ${currCalcBalB}`);
+		console.log(`-`);
+		console.log(`Current Snapshot A: ${currBalanceA}`);
+		console.log(`Current Snapshot B: ${currBalanceB}`);
 		console.log(`-`);
 		console.log(`Total Profits: $${totalProfit}`);
 
