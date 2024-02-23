@@ -711,7 +711,7 @@ async function monitorPrice(
 	maxRetries = 5,
 ) {
 	if (shutDown) return;
-	console.clear();
+	//console.clear();
 	console.log(`Jupgrid v${version}`);
 	formatElapsedTime(startTime);
 	let retries = 0;
@@ -775,10 +775,10 @@ async function monitorPrice(
 
 					if (!checkArray.includes(sellKey)) {
 						missingKeys.push("Sell Key");
-						currCalcBalA = prevBalA + (sellInput / Math.pow(10, selectedDecimalsA));
-						currCalcBalB = prevBalB - ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsB));
+						currCalcBalA = prevBalA + ((sellOutput * 0.999)  / Math.pow(10, selectedDecimalsA));
+						currCalcBalB = prevBalB - (sellInput / Math.pow(10, selectedDecimalsB));
 						console.log(currCalcBalA);
-						console.log(currBalanceA);
+						console.log(currCalcBalB);
 						console.log(
 							"Current Calculated Balance :",
 							selectedTokenA,
@@ -1350,7 +1350,7 @@ async function cancelOrder(checkArray) {
 }
 
 process.on("SIGINT", () => {
-	console.clear();
+	//console.clear();
 	console.log("CTRL+C detected! Performing cleanup...");
 	shutDown = true;
 
