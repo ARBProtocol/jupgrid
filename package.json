@@ -1,6 +1,6 @@
 {
 	"name": "jup-grid",
-	"version": "0.0.0",
+	"version": "0.2.1",
 	"description": "JupGrid",
 	"main": "src/jupgrid.js",
 	"author": {
