@@ -897,8 +897,6 @@ async function setOrders() {
 	console.log("");
 	let base2 = Keypair.generate();
 	try {
-		
-
 		// Send the "buy" transactions
 		if (shutDown) return;
 		console.log("\u{1F4C9} Placing Buy Layer");
@@ -1456,3 +1454,7 @@ process.on("SIGINT", () => {
 		}
 	})();
 });
+
+module.exports = {
+	connection,
+};
