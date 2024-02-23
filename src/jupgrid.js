@@ -757,7 +757,8 @@ async function monitorPrice(
 					if (!checkArray.includes(buyKey)) {
 						missingKeys.push("Buy Key");						
 						currCalcBalA = prevBalA - (buyInput / Math.pow(10, selectedDecimalsA));
-						currCalcBalB = prevBalB + (buyOutput / Math.pow(10, selectedDecimalsB));
+						currCalcBalB = prevBalB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
+
 						console.log(
 							"Current Calculated Balance :",
 							selectedTokenA,
@@ -775,7 +776,7 @@ async function monitorPrice(
 					if (!checkArray.includes(sellKey)) {
 						missingKeys.push("Sell Key");
 						currCalcBalA = prevBalA + (sellInput / Math.pow(10, selectedDecimalsA));
-						currCalcBalB = prevBalB - (sellOutput / Math.pow(10, selectedDecimalsB));
+						currCalcBalB = prevBalB - ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsB));
 						console.log(currCalcBalA);
 						console.log(currBalanceA);
 						console.log(
