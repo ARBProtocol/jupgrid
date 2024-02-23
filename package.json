@@ -10,13 +10,26 @@
 		"eslint": "^8.21.0",
 		"prettier": "^3.2.5"
 	},
-	"eslintConfig": {},
+	"eslintConfig": {
+		"parserOptions": {
+			"ecmaVersion": "latest"
+		},
+		"env": {
+			"es6": true,
+			"node": true
+		},
+		"extends": [
+			"eslint:recommended"
+		]
+	},
 	"prettier": {
 		"tabWidth": 4,
-		"useTabs": true
+		"useTabs": true,
+		"bracketSpacing": true
 	},
 	"scripts": {
-		"fmt": "prettier --write ."
+		"fmt": "prettier --write .",
+		"lint": "eslint ."
 	},
 	"dependencies": {
 		"@jup-ag/api": "^6.0.11",

@@ -234,7 +234,7 @@ async function initialize() {
 		) {
 			validRebalanceSlippage = true;
 		}
-		validMonitorDelay = false;
+		let validMonitorDelay = false;
 		if (monitorDelay >= 5000) {
 			validMonitorDelay = true;
 		}
@@ -279,7 +279,7 @@ async function initialize() {
 					selectedAddressA = token.address;
 					selectedDecimalsA = token.decimals;
 				}
-				tokenALamports = Math.pow(10, selectedDecimalsA);
+				//let tokenALamports = Math.pow(10, selectedDecimalsA);
 			} else {
 				console.log(`Token ${answer} not found. Please Try Again.`);
 			}
@@ -323,7 +323,7 @@ async function initialize() {
 					selectedAddressB = token.address;
 					selectedDecimalsB = token.decimals;
 				}
-				tokenBLamports = Math.pow(10, selectedDecimalsB);
+				//let tokenBLamports = Math.pow(10, selectedDecimalsB);
 			} else {
 				console.log(`Token ${answer} not found. Please Try Again.`);
 			}
@@ -332,7 +332,7 @@ async function initialize() {
 
 		// Check if trade size is valid
 		if (userData.tradeSize) {
-			const validTradeSize = !isNaN(parseFloat(userData.tradeSize));
+			validTradeSize = !isNaN(parseFloat(userData.tradeSize));
 			if (!validTradeSize) {
 				console.log(
 					"Invalid trade size found in user data. Please re-enter.",
@@ -358,7 +358,7 @@ async function initialize() {
 		// Ask user for spread %
 		// Check if spread percentage is valid
 		if (userData.spread) {
-			const validSpread = !isNaN(parseFloat(userData.spread));
+			validSpread = !isNaN(parseFloat(userData.spread));
 			if (!validSpread) {
 				console.log(
 					"Invalid spread percentage found in user data. Please re-enter.",
@@ -508,7 +508,6 @@ async function initialize() {
 			//Get Lamports for Sell Output
 			sellOutput = tradeSizeInLamports;
 
-			init = true;
 			saveUserData(
 				selectedTokenA,
 				selectedAddressA,
@@ -860,43 +859,45 @@ async function recalculateLayers(tradeSizeInLamports, spreadbps, newPrice) {
 	recalcs++;
 }
 
+async function sendTransactionAsync(
+	input,
+	output,
+	inputMint,
+	outputMint,
+	base,
+	delay,
+) {
+	let orderPubkey = null;
+	await new Promise((resolve) => {
+		setTimeout(async () => {
+			try {
+				const transaction = await sendTx(
+					input,
+					output,
+					inputMint,
+					outputMint,
+					base,
+				);
+				if (transaction) {
+					orderPubkey = transaction.orderPubkey;
+				}
+				resolve();
+			} catch (error) {
+				console.error("Error sending transaction:", error);
+				resolve(); // Resolve the promise even in case of an error to continue with the next transaction
+			}
+		}, delay);
+	});
+	return orderPubkey;
+}
+
 async function setOrders() {
 	if (shutDown) return;
 	let base1 = Keypair.generate();
 	console.log("");
 	let base2 = Keypair.generate();
 	try {
-		async function sendTransactionAsync(
-			input,
-			output,
-			inputMint,
-			outputMint,
-			base,
-			delay,
-		) {
-			let orderPubkey = null;
-			await new Promise((resolve) => {
-				setTimeout(async () => {
-					try {
-						const transaction = await sendTx(
-							input,
-							output,
-							inputMint,
-							outputMint,
-							base,
-						);
-						if (transaction) {
-							orderPubkey = transaction.orderPubkey;
-						}
-						resolve();
-					} catch (error) {
-						console.error("Error sending transaction:", error);
-						resolve(); // Resolve the promise even in case of an error to continue with the next transaction
-					}
-				}, delay);
-			});
-			return orderPubkey;
-		}
+		
 
 		// Send the "buy" transactions
 		if (shutDown) return;
