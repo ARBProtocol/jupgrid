@@ -20,3 +20,7 @@ class APIServer {
 		});
 	}
 }
+
+module.exports = {
+	APIServer,
+};
