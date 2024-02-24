@@ -11,12 +11,11 @@ const {
 	questionAsync,
 	downloadTokensList,
 	getTokens,
-	getTxFee,
 } = require("./utils");
 
 let [wallet, rpcUrl] = envload();
 
-const connection = new Connection(rpcUrl, "processed", {
+const connection = new Connection(rpcUrl, "confirmed", {
 	confirmTransactionInitialTimeout: 30000,
 });
 const limitOrder = new LimitOrderProvider(connection);
@@ -956,6 +955,11 @@ async function setOrders() {
 	}
 }
 
+async function getTxFee(txhash) {	
+	const tx = await connection.getTransaction(txhash, "confirmed");
+	return tx.meta.fee;
+}
+
 async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 	if (shutDown) return;
 	// Dynamically import ora
@@ -1022,9 +1026,9 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 					preflightCommitment: "processed",
 				},
 			);
-
-			//let txfee = getTxFee(txid);
-			//console.log(txFee);
+			
+			let txFee = await getTxFee(txid);
+			console.log(txFee);
 			
 			spinner.succeed(`Transaction confirmed with ID: ${txid}`);
 			console.log(`https://solscan.io/tx/${txid}`);

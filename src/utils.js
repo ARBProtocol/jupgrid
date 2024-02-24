@@ -37,16 +37,11 @@ async function getTokens() {
 	return JSON.parse(fs.readFileSync("tokens.txt"));
 }
 
-async function getTxFee(txhash) {
-	const tx = await connection.getTransaction(txhash, "confirmed");
-	return tx.meta.fee;
-}
-
 module.exports = {
 	delay,
 	questionAsync,
 	rl,
 	downloadTokensList,
 	getTokens,
-	getTxFee,
+	//getTxFee,
 };
