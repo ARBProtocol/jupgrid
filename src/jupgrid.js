@@ -11,6 +11,7 @@ const {
 	questionAsync,
 	downloadTokensList,
 	getTokens,
+	getTxFee,
 } = require("./utils");
 
 let [wallet, rpcUrl] = envload();
@@ -84,6 +85,9 @@ let {
 	monitorDelay = null,
 	buyKey = null,
 	sellKey = null,
+	txFeeBuy = 0,
+	txFeeSell = 0,
+	txFeeCancel = 0,
 	userData = {
 		selectedTokenA: null,
 		selectedTokenB: null,
@@ -720,6 +724,7 @@ async function monitorPrice(
 
 	while (retries < maxRetries) {
 		try {
+/*
 			const queryParams = {
 				inputMint: selectedAddressA,
 				outputMint: selectedAddressB,
@@ -740,14 +745,24 @@ async function monitorPrice(
 			console.log(
 				`Buy Price : ${sellOutput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} For ${buyOutput / Math.pow(10, selectedDecimalsB)} ${selectedTokenB}\n`,
 			);
+*/
 			await checkOpenOrders();
 
 			if (checkArray.length !== 2) {
 				let missingKeys = [];
-
+				const queryParams = {
+					inputMint: selectedAddressA,
+					outputMint: selectedAddressB,
+					amount: tradeSizeInLamports,
+					slippageBps: 0,
+				};
+	
+				const response = await axios.get(quoteurl, { params: queryParams });
+				const newPrice = response.data.outAmount;
 				// Handling different states based on the length of checkArray
 				if (checkArray.length === 0) {
 					console.log("No orders found. Resetting.");
+					
 					await recalculateLayers(
 						tradeSizeInLamports,
 						spreadbps,
@@ -832,7 +847,7 @@ async function monitorPrice(
 			break; // Break the loop if we've successfully handled the price monitoring
 		} catch (error) {
 			console.error(
-				`Error: Connection or Token Data Error (Attempt ${retries + 1} of ${maxRetries})`,
+				`Error: Connection or Token Data Error (Monitor Price) - (Attempt ${retries + 1} of ${maxRetries})`,
 			);
 			retries++;
 
@@ -881,7 +896,7 @@ async function sendTransactionAsync(
 					base,
 				);
 				if (transaction) {
-					orderPubkey = transaction.orderPubkey;
+					orderPubkey = transaction.orderPubkey;					 
 				}
 				resolve();
 			} catch (error) {
@@ -1008,6 +1023,9 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 				},
 			);
 
+			//let txfee = getTxFee(txid);
+			//console.log(txFee);
+			
 			spinner.succeed(`Transaction confirmed with ID: ${txid}`);
 			console.log(`https://solscan.io/tx/${txid}`);
 			console.log("Order Successful");
@@ -1146,9 +1164,9 @@ async function checkOpenOrders() {
 		console.log(
 			`Balance Percent Change Since Start: ${balancePercentageChange.toFixed(2)}%`,
 		);
-		console.log(
-			`Market Percent Change Since Start: ${marketPercentageChange.toFixed(2)}%`,
-		);
+		//console.log(
+		//	`Market Percent Change Since Start: ${marketPercentageChange.toFixed(2)}%`,
+		//);
 	} else {
 		console.log("Please wait for first orders to fill before statistics");
 	}
