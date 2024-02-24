@@ -78,6 +78,8 @@ let {
 	startTime = new Date(),
 	profitA = null,
 	profitB = null,
+	profitSumA = 0,
+	profitSumB = 0,
 	totalProfit = null,
 	monitorDelay = null,
 	buyKey = null,
@@ -758,7 +760,8 @@ async function monitorPrice(
 						missingKeys.push("Buy Key");						
 						currCalcBalA = prevBalA - (buyInput / Math.pow(10, selectedDecimalsA));
 						currCalcBalB = prevBalB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
-
+						profitSumA = profitSumA - (buyInput / Math.pow(10, selectedDecimalsA));
+						profitSumB = profitSumB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
 						console.log(
 							"Current Calculated Balance :",
 							selectedTokenA,
@@ -777,8 +780,8 @@ async function monitorPrice(
 						missingKeys.push("Sell Key");
 						currCalcBalA = prevBalA + ((sellOutput * 0.999)  / Math.pow(10, selectedDecimalsA));
 						currCalcBalB = prevBalB - (sellInput / Math.pow(10, selectedDecimalsB));
-						console.log(currCalcBalA);
-						console.log(currCalcBalB);
+						profitSumA = profitSumA + ((sellOutput * 0.999)  / Math.pow(10, selectedDecimalsA));
+						profitSumB = profitSumB - (sellInput / Math.pow(10, selectedDecimalsB));						
 						console.log(
 							"Current Calculated Balance :",
 							selectedTokenA,
@@ -1132,8 +1135,8 @@ async function checkOpenOrders() {
 		console.log(`Current Balance: $${currUsdTotalBalance.toFixed(2)}`);
 		console.log(`Start Balance: $${initUsdTotalBalance}`);
 		console.log(`-`);
-		console.log(`Current Calculated A Balance: ${currCalcBalA}`);
-		console.log(`Current Calculated B Balance: ${currCalcBalB}`);
+		console.log(`Current Calculated A Profit: ${profitSumA}`);
+		console.log(`Current Calculated B Profit: ${profitSumB}`);
 		console.log(`-`);
 		console.log(`Current Snapshot A: ${currBalanceA}`);
 		console.log(`Current Snapshot B: ${currBalanceB}`);
@@ -1196,8 +1199,7 @@ async function cancelOrder(checkArray) {
 
 				const errorInfo = `
 					HTTP Error Response:
-					Status: ${response.status} ${response.statusText}
-					Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}
+					Status: ${response.status} ${response.statusText}					
 					Body: ${errorDetails}
 				`;
 
@@ -1206,6 +1208,7 @@ async function cancelOrder(checkArray) {
 						"Server error with detailed response:",
 						errorInfo,
 					);
+					await checkOpenOrders();
 					throw new Error(`Server error! Status: ${response.status}`);
 				} else {
 					console.error(
@@ -1213,6 +1216,7 @@ async function cancelOrder(checkArray) {
 						errorInfo,
 					);
 					spinner.fail(`HTTP error! Status: ${response.status}`);
+					await checkOpenOrders();
 					throw new Error(`HTTP error! Status: ${response.status}`);
 				}
 			}
