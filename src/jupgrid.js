@@ -749,99 +749,71 @@ async function monitorPrice(
 
 			if (checkArray.length !== 2) {
 				let missingKeys = [];
+				let remainingKeys = []; // Adjusted to track multiple remaining keys
 				const queryParams = {
 					inputMint: selectedAddressA,
 					outputMint: selectedAddressB,
 					amount: tradeSizeInLamports,
 					slippageBps: 0,
 				};
-	
+			
 				const response = await axios.get(quoteurl, { params: queryParams });
 				const newPrice = response.data.outAmount;
-				// Handling different states based on the length of checkArray
+			
 				if (checkArray.length === 0) {
 					console.log("No orders found. Resetting.");
-					
-					await recalculateLayers(
-						tradeSizeInLamports,
-						spreadbps,
-						newPrice,
-					);
 				} else if (checkArray.length === 1) {
 					// Identify which key(s) are missing
-
 					if (!checkArray.includes(buyKey)) {
-						missingKeys.push("Buy Key");						
+						missingKeys.push("Buy Key");
+					} else {
+						remainingKeys.push("Buy Key"); // Buy Key is not missing, so it's remaining
+					}
+					if (!checkArray.includes(sellKey)) {
+						missingKeys.push("Sell Key");
+					} else {
+						remainingKeys.push("Sell Key"); // Sell Key is not missing, so it's remaining						
+					}
+			
+					// Adjust balances and profits based on which key is missing
+					if (missingKeys.includes("Buy Key")) {
 						currCalcBalA = prevBalA - (buyInput / Math.pow(10, selectedDecimalsA));
 						currCalcBalB = prevBalB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
 						profitSumA = profitSumA - (buyInput / Math.pow(10, selectedDecimalsA));
 						profitSumB = profitSumB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
-						console.log(
-							"Current Calculated Balance :",
-							selectedTokenA,
-							currCalcBalA,
-						);
-						console.log(
-							"Current Calculated Balance :",
-							selectedTokenB,
-							currCalcBalB,
-						);
-						prevBalA = currCalcBalA;
-						prevBalB = currCalcBalB;
-					}
-
-					if (!checkArray.includes(sellKey)) {
-						missingKeys.push("Sell Key");
-						currCalcBalA = prevBalA + ((sellOutput * 0.999)  / Math.pow(10, selectedDecimalsA));
+					} else if (missingKeys.includes("Sell Key")) {
+						currCalcBalA = prevBalA + ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsA));
 						currCalcBalB = prevBalB - (sellInput / Math.pow(10, selectedDecimalsB));
-						profitSumA = profitSumA + ((sellOutput * 0.999)  / Math.pow(10, selectedDecimalsA));
-						profitSumB = profitSumB - (sellInput / Math.pow(10, selectedDecimalsB));						
-						console.log(
-							"Current Calculated Balance :",
-							selectedTokenA,
-							currCalcBalA,
-						);
-						console.log(
-							"Current Calculated Balance :",
-							selectedTokenB,
-							currCalcBalB,
-						);
-						prevBalA = currCalcBalA;
-						prevBalB = currCalcBalB;						
+						profitSumA = profitSumA + ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsA));
+						profitSumB = profitSumB - (sellInput / Math.pow(10, selectedDecimalsB));
 					}
-
-					// Determine the missing key for the action message
-					let missingKeyName = missingKeys[0]; // Since there will be exactly one missing key
 					console.log(
-						"Missing Key: " +
-							missingKeyName +
-							". Resetting price points and placing new orders.",
+						"Current Calculated Balance :",
+						selectedTokenA,
+						currCalcBalA,
 					);
-					await recalculateLayers(
-						tradeSizeInLamports,
-						spreadbps,
-						newPrice,
+					console.log(
+						"Current Calculated Balance :",
+						selectedTokenB,
+						currCalcBalB,
 					);
+					prevBalA = currCalcBalA;
+					prevBalB = currCalcBalB;
+					
+					console.log("Missing Key: " + missingKeys[0] + ". Resetting price points and placing new orders.");
 				} else if (checkArray.length > 2) {
-					console.log(
-						"Excessive orders found, cancelling and resetting.",
-					);
-					await recalculateLayers(
-						tradeSizeInLamports,
-						spreadbps,
-						newPrice,
-					);
+					console.log("Excessive orders found, identifying valid orders and resetting.");
+					// For excessive orders, you might need additional logic to identify and manage them
+					// Here, you'd identify which orders are valid, potentially adjusting remainingKeys accordingly
 				}
+			
+				// Common recalculating layers logic for scenarios requiring resetting
+				await recalculateLayers(tradeSizeInLamports, spreadbps, newPrice);
 			} else {
 				console.log("2 open orders. Waiting for change.");
 				await delay(monitorDelay);
-				return monitorPrice(
-					selectedAddressA,
-					selectedAddressB,
-					tradeSizeInLamports,
-					maxRetries,
-				);
-			}
+				return monitorPrice(selectedAddressA, selectedAddressB, tradeSizeInLamports, maxRetries);
+			}			
 
 			break; // Break the loop if we've successfully handled the price monitoring
 		} catch (error) {
@@ -1196,7 +1168,6 @@ async function cancelOrder(checkArray) {
 				feePayer: wallet.publicKey.toString(),
 				orders: Array.from(checkArray),
 			};
-
 			//Get cancel order info
 			console.log(" Please Wait");
 			const response = await fetch(
@@ -1248,7 +1219,7 @@ async function cancelOrder(checkArray) {
 			const transactionBuf = Buffer.from(transactionBase64, "base64");
 			const transaction = solanaWeb3.Transaction.from(transactionBuf);
 			const signers = [wallet.payer];
-
+			
 			const txid = await solanaWeb3.sendAndConfirmTransaction(
 				connection,
 				transaction,
@@ -1258,7 +1229,7 @@ async function cancelOrder(checkArray) {
 					preflightCommitment: "processed",
 					commitment: "confirmed",
 				},
-			);
+			);			
 
 			spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
 			console.log(`Transaction Receipt: https://solscan.io/tx/${txid}`);
