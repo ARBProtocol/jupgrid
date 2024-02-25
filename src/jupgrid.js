@@ -716,7 +716,7 @@ async function monitorPrice(
 	maxRetries = 5,
 ) {
 	if (shutDown) return;
-	//console.clear();
+	console.clear();
 	console.log(`Jupgrid v${version}`);
 	formatElapsedTime(startTime);
 	let retries = 0;
@@ -762,6 +762,7 @@ async function monitorPrice(
 			
 				if (checkArray.length === 0) {
 					console.log("No orders found. Resetting.");
+					await recalculateLayers(tradeSizeInLamports, spreadbps, newPrice);
 				} else if (checkArray.length === 1) {
 					// Identify which key(s) are missing
 					if (!checkArray.includes(buyKey)) {
@@ -801,14 +802,12 @@ async function monitorPrice(
 					prevBalB = currCalcBalB;
 					
 					console.log("Missing Key: " + missingKeys[0] + ". Resetting price points and placing new orders.");
+					await recalculateLayers(tradeSizeInLamports, spreadbps, newPrice);
 				} else if (checkArray.length > 2) {
 					console.log("Excessive orders found, identifying valid orders and resetting.");
-					// For excessive orders, you might need additional logic to identify and manage them
+					await recalculateLayers(tradeSizeInLamports, spreadbps, newPrice);
 					// Here, you'd identify which orders are valid, potentially adjusting remainingKeys accordingly
-				}
-			
-				// Common recalculating layers logic for scenarios requiring resetting
-				await recalculateLayers(tradeSizeInLamports, spreadbps, newPrice);
+				}			
 			} else {
 				console.log("2 open orders. Waiting for change.");
 				await delay(monitorDelay);
@@ -1149,205 +1148,187 @@ async function checkOpenOrders() {
 }
 
 async function cancelOrder(checkArray) {
-	// Dynamically import
-	if (checkArray.length === 0) {
-		setOrders();
-		return;
-	}
-	const ora = (await import("ora")).default;
-	const spinner = ora("Cancelling orders...").start();
+    if (checkArray.length === 0) {
+        setOrders();
+        return;
+    }
+    const ora = (await import("ora")).default;
+    const spinner = ora("Cancelling orders...").start();
 
-	//Retry parameters
-	const maxRetries = 30; // Maximum number of retries
-	const cpause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    //Retry parameters
+    const maxRetries = 30; // Maximum number of retries
+    const cpause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    let attempt = 1; // Initialize attempt counter
 
-	for (let attempt = 1; attempt <= maxRetries; attempt++) {
-		try {
-			const requestData = {
-				owner: wallet.publicKey.toString(),
-				feePayer: wallet.publicKey.toString(),
-				orders: Array.from(checkArray),
-			};
-			//Get cancel order info
-			console.log(" Please Wait");
-			const response = await fetch(
-				"https://jup.ag/api/limit/v1/cancelOrders",
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(requestData),
-				},
-			);
+    while (attempt <= maxRetries) {
+        try {
+            openOrders.length = 0;
+            checkArray.length = 0;
 
-			if (!response.ok) {
-				let errorDetails = "";
-				try {
-					// Attempt to read the response body
-					errorDetails = await response.text(); // Use .json() if the server sends JSON error responses
-				} catch (bodyError) {
-					errorDetails = "Failed to read error response body.";
-				}
+            // Simulating your original logic to get orders
+            openOrders = await limitOrder.getOrders([
+                ownerFilter(wallet.publicKey, "processed"),
+            ]);
 
-				const errorInfo = `
-					HTTP Error Response:
-					Status: ${response.status} ${response.statusText}					
-					Body: ${errorDetails}
-				`;
+            checkArray = openOrders.map((order) => order.publicKey.toString());
+            if (checkArray.length === 0) {
+                spinner.succeed("No open orders found, resetting.");
+                setOrders();
+                return; // Exit if no orders need cancelling
+            }
 
-				if (response.status === 500) {
-					console.error(
-						"Server error with detailed response:",
-						errorInfo,
-					);
-					await checkOpenOrders();
-					throw new Error(`Server error! Status: ${response.status}`);
-				} else {
-					console.error(
-						"HTTP error with detailed response:",
-						errorInfo,
-					);
-					spinner.fail(`HTTP error! Status: ${response.status}`);
-					await checkOpenOrders();
-					throw new Error(`HTTP error! Status: ${response.status}`);
-				}
-			}
+            spinner.text = "Please Wait";
 
-			const responseData = await response.json();
-			const transactionBase64 = responseData.tx;
-			const transactionBuf = Buffer.from(transactionBase64, "base64");
-			const transaction = solanaWeb3.Transaction.from(transactionBuf);
-			const signers = [wallet.payer];
+            const requestData = {
+                owner: wallet.publicKey.toString(),
+                feePayer: wallet.publicKey.toString(),
+                orders: Array.from(checkArray),
+            };
+
+            const response = await fetch(
+                "https://jup.ag/api/limit/v1/cancelOrders",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(requestData),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const responseData = await response.json();
+            const transactionBase64 = responseData.tx;
+            const transactionBuf = Buffer.from(transactionBase64, "base64");
+            const transaction = solanaWeb3.Transaction.from(transactionBuf);
+            const signers = [wallet.payer];
+
+            const txid = await solanaWeb3.sendAndConfirmTransaction(
+                connection,
+                transaction,
+                signers,
+                {
+                    skipPreflight: false,
+                    preflightCommitment: "processed",
+                    commitment: "confirmed",
+                },
+            );
+
+            spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
+            console.log(`Transaction Receipt: https://solscan.io/tx/${txid}`);
+			await balanceCheck();
+            setOrders(); // Calls setOrders and exits if successful
+            return; // Exit after successful processing
+
 			
-			const txid = await solanaWeb3.sendAndConfirmTransaction(
-				connection,
-				transaction,
-				signers,
-				{
-					skipPreflight: false,
-					preflightCommitment: "processed",
-					commitment: "confirmed",
-				},
-			);			
+        } catch (error) {
+            spinner.fail(`Attempt ${attempt} failed: ${error.message}, retrying...`);
+            if (attempt >= maxRetries) {
+                spinner.fail(`Error canceling order after ${maxRetries} attempts: ${error.message}`);
+                console.error(`Final error canceling orders: ${error.message}`);
+                return; // Exit function after max retries
+            }
+            await cpause(5000); // Exponential backoff or constant delay
+            attempt++; // Increment attempt counter
+        }
+    }
+}
 
-			spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
-			console.log(`Transaction Receipt: https://solscan.io/tx/${txid}`);
-			await cpause(7000);
-			console.log("Orders Cancelled, Resetting");
 
-			//Update balances and profits
-			let currentBalances = await getBalance(
-				wallet,
+
+async function balanceCheck(){
+	//Update balances and profits
+	let currentBalances = await getBalance(
+		wallet,
+		selectedAddressA,
+		selectedAddressB,
+		selectedTokenA,
+		selectedTokenB,
+	);
+
+	// Calculate profit
+	profitA = currentBalances.usdBalanceA - initUsdBalanceA;
+	profitB = currentBalances.usdBalanceB - initUsdBalanceB;
+	currBalanceA = currentBalances.balanceA;
+	currBalanceB = currentBalances.balanceB;
+	currUSDBalanceA = currentBalances.usdBalanceA;
+	currUSDBalanceB = currentBalances.usdBalanceB;
+	currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
+	let percentageOfA = 0;
+	let percentageOfB = 0;
+	if (currUsdTotalBalance > 0) {
+		percentageOfA = (currUSDBalanceA / currUsdTotalBalance) * 100;
+		percentageOfB = (currUSDBalanceB / currUsdTotalBalance) * 100;
+	}
+	tokenARebalanceValue = currentBalances.tokenARebalanceValue;
+	tokenBRebalanceValue = currentBalances.tokenBRebalanceValue;
+
+	//Rebalancing allowed check
+	if (
+		rebalanceAllowed &&
+		(percentageOfA < rebalancePercentage ||
+			percentageOfB < rebalancePercentage)
+	) {
+		let targetUsdBalancePerToken = currUsdTotalBalance / 2;
+		let adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
+		let adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
+
+		if (adjustmentA < 0) {
+			// Token A's USD balance is above the target, calculate how much Token A to sell
+			let rebalanceValue =
+				(Math.abs(adjustmentA) / tokenARebalanceValue) *
+				Math.pow(10, selectedDecimalsA);
+			console.log(
+				`Need to sell ${rebalanceValue / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} to balance.`,
+			);
+			await rebalanceTokens(
 				selectedAddressA,
 				selectedAddressB,
-				selectedTokenA,
-				selectedTokenB,
+				rebalanceValue,
+				rebalanceSlippageBPS,
+				quoteurl,
 			);
-
-			// Calculate profit
-			profitA = currentBalances.usdBalanceA - initUsdBalanceA;
-			profitB = currentBalances.usdBalanceB - initUsdBalanceB;
-			currBalanceA = currentBalances.balanceA;
-			currBalanceB = currentBalances.balanceB;
-			currUSDBalanceA = currentBalances.usdBalanceA;
-			currUSDBalanceB = currentBalances.usdBalanceB;
-			currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
-			let percentageOfA = 0;
-			let percentageOfB = 0;
-			if (currUsdTotalBalance > 0) {
-				percentageOfA = (currUSDBalanceA / currUsdTotalBalance) * 100;
-				percentageOfB = (currUSDBalanceB / currUsdTotalBalance) * 100;
-			}
-			tokenARebalanceValue = currentBalances.tokenARebalanceValue;
-			tokenBRebalanceValue = currentBalances.tokenBRebalanceValue;
-
-			//Rebalancing allowed check
-			if (
-				rebalanceAllowed &&
-				(percentageOfA < rebalancePercentage ||
-					percentageOfB < rebalancePercentage)
-			) {
-				let targetUsdBalancePerToken = currUsdTotalBalance / 2;
-				let adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
-				let adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
-
-				if (adjustmentA < 0) {
-					// Token A's USD balance is above the target, calculate how much Token A to sell
-					let rebalanceValue =
-						(Math.abs(adjustmentA) / tokenARebalanceValue) *
-						Math.pow(10, selectedDecimalsA);
-					console.log(
-						`Need to sell ${rebalanceValue / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} to balance.`,
-					);
-					await rebalanceTokens(
-						selectedAddressA,
-						selectedAddressB,
-						rebalanceValue,
-						rebalanceSlippageBPS,
-						quoteurl,
-					);
-				} else if (adjustmentB < 0) {
-					// Token B's USD balance is above the target, calculate how much Token B to sell
-					let rebalanceValue =
-						(Math.abs(adjustmentB) / tokenBRebalanceValue) *
-						Math.pow(10, selectedDecimalsB);
-					console.log(
-						`Need to sell ${rebalanceValue / Math.pow(10, selectedDecimalsB)} ${selectedTokenB} to balance.`,
-					);
-					await rebalanceTokens(
-						selectedAddressB,
-						selectedAddressA,
-						rebalanceValue,
-						rebalanceSlippageBPS,
-						quoteurl,
-					);
-				}
-			}
-			balancePercentageChange =
-				((currUsdTotalBalance - initUsdTotalBalance) /
-					initUsdTotalBalance) *
-				100;
-			totalProfit = (profitA + profitB).toFixed(2);
+		} else if (adjustmentB < 0) {
+			// Token B's USD balance is above the target, calculate how much Token B to sell
+			let rebalanceValue =
+				(Math.abs(adjustmentB) / tokenBRebalanceValue) *
+				Math.pow(10, selectedDecimalsB);
 			console.log(
-				`Balance for Token A (${selectedTokenA}): ${currBalanceA}, $${currentBalances.usdBalanceA.toFixed(2)}`,
+				`Need to sell ${rebalanceValue / Math.pow(10, selectedDecimalsB)} ${selectedTokenB} to balance.`,
 			);
-			console.log(
-				`Balance for Token B (${selectedTokenB}): ${currBalanceB}, $${currentBalances.usdBalanceB.toFixed(2)}`,
+			await rebalanceTokens(
+				selectedAddressB,
+				selectedAddressA,
+				rebalanceValue,
+				rebalanceSlippageBPS,
+				quoteurl,
 			);
-			console.log(
-				`${selectedTokenA} profit since start: $${profitA.toFixed(2)}`,
-			);
-			console.log(
-				`${selectedTokenB} profit since start: $${profitB.toFixed(2)}`,
-			);
-
-			// Reset new orders
-			setOrders();
-
-			// If the request was successful, break out of the loop
-			break;
-		} catch (error) {
-			if (attempt === maxRetries) {
-				spinner.fail(
-					`Error canceling order after ${maxRetries} attempts: ${error.message}`,
-				);
-				console.error(`Error canceling order/s: ${checkArray}:`, error);
-				break; // Exit the loop and function after max retries
-			}
-
-			console.log(`Attempt ${attempt} failed, retrying...`);
-			console.log(error);
-			await cpause(2000 * attempt); // Exponential backoff
-
-			console.log("Checking for changes in orders.");
-			await checkOpenOrders();
 		}
 	}
+	balancePercentageChange =
+		((currUsdTotalBalance - initUsdTotalBalance) /
+			initUsdTotalBalance) *
+		100;
+	totalProfit = (profitA + profitB).toFixed(2);
+	console.log(
+		`Balance for Token A (${selectedTokenA}): ${currBalanceA}, $${currentBalances.usdBalanceA.toFixed(2)}`,
+	);
+	console.log(
+		`Balance for Token B (${selectedTokenB}): ${currBalanceB}, $${currentBalances.usdBalanceB.toFixed(2)}`,
+	);
+	console.log(
+		`${selectedTokenA} profit since start: $${profitA.toFixed(2)}`,
+	);
+	console.log(
+		`${selectedTokenB} profit since start: $${profitB.toFixed(2)}`,
+	);
 }
 
 process.on("SIGINT", () => {
-	//console.clear();
+	console.clear();
 	console.log("CTRL+C detected! Performing cleanup...");
 	shutDown = true;
 
