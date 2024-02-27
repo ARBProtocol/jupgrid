@@ -851,10 +851,11 @@ async function sendTransactionAsync(
 	output,
 	inputMint,
 	outputMint,
-	base,
+	//base,
 	delay,
 ) {
 	let orderPubkey = null;
+	let base = Keypair.generate();
 	await new Promise((resolve) => {
 		setTimeout(async () => {
 			try {
@@ -880,9 +881,9 @@ async function sendTransactionAsync(
 
 async function setOrders() {
 	if (shutDown) return;
-	let base1 = Keypair.generate();
+	//let base1 = Keypair.generate();
 	console.log("");
-	let base2 = Keypair.generate();
+	//let base2 = Keypair.generate();
 	try {
 		// Send the "buy" transactions
 		if (shutDown) return;
@@ -892,7 +893,7 @@ async function setOrders() {
 			buyOutput,
 			selectedAddressA,
 			selectedAddressB,
-			base1,
+			//base1,
 			1000,
 		);
 		if (buyOrder) {
@@ -907,7 +908,7 @@ async function setOrders() {
 			sellOutput,
 			selectedAddressB,
 			selectedAddressA,
-			base2,
+			//base2,
 			1000,
 		);
 		if (sellOrder) {
@@ -1199,11 +1200,13 @@ async function cancelOrder(checkArray) {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
-
+						
             const responseData = await response.json();
             const transactionBase64 = responseData.tx;
             const transactionBuf = Buffer.from(transactionBase64, "base64");
             const transaction = solanaWeb3.Transaction.from(transactionBuf);
+			const { blockhash } = await connection.getLatestBlockhash();
+			transaction.recentBlockhash = blockhash;
             const signers = [wallet.payer];
 
             const txid = await solanaWeb3.sendAndConfirmTransaction(
