@@ -539,7 +539,7 @@ async function initialize() {
 			);
 			console.clear();
 			console.log("\n\u{1F680} Starting Jupgrid!");
-
+			
 			let initialBalances = await getBalance(
 				wallet,
 				selectedAddressA,
@@ -552,6 +552,12 @@ async function initialize() {
 			initBalanceB = initialBalances.balanceB;
 			initUsdBalanceB = initialBalances.usdBalanceB;
 			initUsdTotalBalance = initUsdBalanceA + initUsdBalanceB;
+
+			currBalanceA = initialBalances.balanceA;
+			currBalanceB = initialBalances.balanceB;
+			currUSDBalanceA = initialBalances.usdBalanceA;
+			currUSDBalanceB = initialBalances.usdBalanceB;
+			currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
 			console.log(
 				`${chalk.cyan(selectedTokenA)} Balance: ${chalk.cyan(initBalanceA)}, worth $${chalk.cyan(initUsdBalanceA.toFixed(2))}`,
 				`\n${chalk.magenta(selectedTokenB)} Balance: ${chalk.magenta(initBalanceB)}, worth $${chalk.magenta(initUsdBalanceB.toFixed(2))}`,
@@ -833,8 +839,9 @@ async function updateMainDisplay(){
 	console.clear();
 	console.log(`Jupgrid v${version}`);
 	formatElapsedTime(startTime);
+	console.log(`Settings: ${chalk.cyan(selectedTokenA)}/${chalk.magenta(selectedTokenB)} - Spread: ${spread}%`)
 	console.log(`-`);
-	if (profitA != null && profitB != null) {		
+	if (profitA === null && profitB === null) {		
 		console.log("Please wait for first orders to fill before statistics");
 		currUsdTotalBalance = initUsdTotalBalance;
 	}
@@ -844,19 +851,19 @@ async function updateMainDisplay(){
 	let profitOrLoss = currUsdTotalBalance - initUsdTotalBalance;
 	let percentageChange = (profitOrLoss / initUsdTotalBalance) * 100;
 		if (profitOrLoss > 0) {
-			console.log(`Difference : ${chalk.green(`+$${profitOrLoss.toFixed(2)} (${percentageChange.toFixed(2)}%)`)}`);
+			console.log(`Profit : ${chalk.green(`+$${profitOrLoss.toFixed(2)} (${percentageChange.toFixed(2)}%)`)}`);
 		} else if (profitOrLoss < 0) {
-			console.log(`Difference : ${chalk.red(`-$${Math.abs(profitOrLoss).toFixed(2)} (${Math.abs(percentageChange).toFixed(2)}%)`)}`);
+			console.log(`Loss : ${chalk.red(`-$${Math.abs(profitOrLoss).toFixed(2)} (${Math.abs(percentageChange).toFixed(2)}%)`)}`);
 		} else {
 			console.log(`Difference : $${profitOrLoss.toFixed(2)} (0.00%)`); // Neutral
 		}
 	console.log(`-`);
-	console.log(`Latest Snapshot Balance ${chalk.cyan(selectedTokenA)}: ${chalk.cyan(currBalanceA)}`);
-	console.log(`Latest Snapshot Balance ${chalk.magenta(selectedTokenB)}: ${chalk.magenta(currBalanceB)}`);
+	console.log(`Latest Snapshot Balance ${chalk.cyan(selectedTokenA)}: ${chalk.cyan(currBalanceA.toFixed(5))}`);
+	console.log(`Latest Snapshot Balance ${chalk.magenta(selectedTokenB)}: ${chalk.magenta(currBalanceB.toFixed(5))}`);
 	console.log(`-`);
 	console.log(`Experimental Data Below...`);
-	console.log(`${chalk.cyan(selectedTokenA)} Calculated Change: ${chalk.cyan(profitSumA)}`);
-	console.log(`${chalk.magenta(selectedTokenB)} Calculated Change: ${chalk.magenta(profitSumB)}`);
+	console.log(`${chalk.cyan(selectedTokenA)} Calculated Change: ${chalk.cyan(profitSumA.toFixed(5))}`);
+	console.log(`${chalk.magenta(selectedTokenB)} Calculated Change: ${chalk.magenta(profitSumB.toFixed(5))}`);
 	console.log(``);
 };
 
@@ -1230,7 +1237,7 @@ async function balanceCheck(){
 		selectedTokenA,
 		selectedTokenB,
 	);
-
+		console.log("Balances Updated");
 	// Calculate profit
 	profitA = currentBalances.usdBalanceA - initUsdBalanceA;
 	profitB = currentBalances.usdBalanceB - initUsdBalanceB;
@@ -1264,7 +1271,7 @@ async function balanceCheck(){
 				(Math.abs(adjustmentA) / tokenARebalanceValue) *
 				Math.pow(10, selectedDecimalsA);
 			console.log(
-				`Need to sell ${rebalanceValue / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} to balance.`,
+				`Need to sell ${chalk.cyan(rebalanceValue / Math.pow(10, selectedDecimalsA))} ${chalk.cyan(selectedTokenA)} to balance.`,
 			);
 			await rebalanceTokens(
 				selectedAddressA,
@@ -1279,7 +1286,7 @@ async function balanceCheck(){
 				(Math.abs(adjustmentB) / tokenBRebalanceValue) *
 				Math.pow(10, selectedDecimalsB);
 			console.log(
-				`Need to sell ${rebalanceValue / Math.pow(10, selectedDecimalsB)} ${selectedTokenB} to balance.`,
+				`Need to sell ${chalk.magenta(rebalanceValue / Math.pow(10, selectedDecimalsB))} ${chalk.magenta(selectedTokenB)} to balance.`,
 			);
 			await rebalanceTokens(
 				selectedAddressB,
