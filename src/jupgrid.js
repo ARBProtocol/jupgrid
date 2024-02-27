@@ -1,17 +1,27 @@
-const solanaWeb3 = require("@solana/web3.js");
+import * as solanaWeb3 from '@solana/web3.js';
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
-const { ownerFilter, LimitOrderProvider } = require("@jup-ag/limit-order-sdk");
-const fetch = require("cross-fetch");
-const axios = require("axios");
-const fs = require("fs");
-const { envload, saveUserData, loadUserData } = require("./settings");
-const {
-	delay,
-	rl,
-	questionAsync,
-	downloadTokensList,
-	getTokens,
-} = require("./utils");
+
+import { ownerFilter, LimitOrderProvider } from '@jup-ag/limit-order-sdk';
+
+import fetch from 'cross-fetch';
+import axios from 'axios';
+import * as fs from 'fs';
+
+import { envload, saveUserData, loadUserData } from './settings.js';
+
+import {
+  delay,
+  rl,
+  questionAsync,
+  downloadTokensList,
+  getTokens,
+} from './utils.js';
+
+import ora from 'ora';
+
+import chalk from 'chalk';
+import packageInfo from '../package.json' assert { type: 'json' };
+const version = packageInfo.version;
 
 let [wallet, rpcUrl] = envload();
 
@@ -23,7 +33,7 @@ const limitOrder = new LimitOrderProvider(connection);
 let shutDown = false;
 
 const quoteurl = "https://quote-api.jup.ag/v6/quote";
-const version = require("../package.json").version;
+
 let {
 	validTokenA = null,
 	validTokenB = null,
@@ -543,8 +553,8 @@ async function initialize() {
 			initUsdBalanceB = initialBalances.usdBalanceB;
 			initUsdTotalBalance = initUsdBalanceA + initUsdBalanceB;
 			console.log(
-				`${selectedTokenA} Balance: ${initBalanceA}, worth $${initUsdBalanceA.toFixed(2)}`,
-				`\n${selectedTokenB} Balance: ${initBalanceB}, worth $${initUsdBalanceB.toFixed(2)}`,
+				`${chalk.cyan(selectedTokenA)} Balance: ${chalk.cyan(initBalanceA)}, worth $${chalk.cyan(initUsdBalanceA.toFixed(2))}`,
+				`\n${chalk.magenta(selectedTokenB)} Balance: ${chalk.magenta(initBalanceB)}, worth $${chalk.magenta(initUsdBalanceB.toFixed(2))}`,
 				`\nTotal User Balance: $${initUsdTotalBalance.toFixed(2)}`,
 			);
 			setOrders(tradeSizeInLamports);
@@ -716,9 +726,6 @@ async function monitorPrice(
 	maxRetries = 5,
 ) {
 	if (shutDown) return;
-	console.clear();
-	console.log(`Jupgrid v${version}`);
-	formatElapsedTime(startTime);
 	let retries = 0;
 
 	while (retries < maxRetries) {
@@ -745,6 +752,7 @@ async function monitorPrice(
 				`Buy Price : ${sellOutput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} For ${buyOutput / Math.pow(10, selectedDecimalsB)} ${selectedTokenB}\n`,
 			);
 */
+			await updateMainDisplay();
 			await checkOpenOrders();
 
 			if (checkArray.length !== 2) {
@@ -787,17 +795,7 @@ async function monitorPrice(
 						currCalcBalB = prevBalB - (sellInput / Math.pow(10, selectedDecimalsB));
 						profitSumA = profitSumA + ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsA));
 						profitSumB = profitSumB - (sellInput / Math.pow(10, selectedDecimalsB));
-					}
-					console.log(
-						"Current Calculated Balance :",
-						selectedTokenA,
-						currCalcBalA,
-					);
-					console.log(
-						"Current Calculated Balance :",
-						selectedTokenB,
-						currCalcBalB,
-					);
+					}					
 					prevBalA = currCalcBalA;
 					prevBalB = currCalcBalB;
 					
@@ -831,6 +829,37 @@ async function monitorPrice(
 	}
 }
 
+async function updateMainDisplay(){
+	console.clear();
+	console.log(`Jupgrid v${version}`);
+	formatElapsedTime(startTime);
+	console.log(`-`);
+	if (profitA != null && profitB != null) {		
+		console.log("Please wait for first orders to fill before statistics");
+		currUsdTotalBalance = initUsdTotalBalance;
+	}
+	console.log(`Starting Balance : $${initUsdTotalBalance.toFixed(2)}`);
+	console.log(`Current Balance  : $${currUsdTotalBalance.toFixed(2)}`);
+
+	let profitOrLoss = currUsdTotalBalance - initUsdTotalBalance;
+	let percentageChange = (profitOrLoss / initUsdTotalBalance) * 100;
+		if (profitOrLoss > 0) {
+			console.log(`Difference : ${chalk.green(`+$${profitOrLoss.toFixed(2)} (${percentageChange.toFixed(2)}%)`)}`);
+		} else if (profitOrLoss < 0) {
+			console.log(`Difference : ${chalk.red(`-$${Math.abs(profitOrLoss).toFixed(2)} (${Math.abs(percentageChange).toFixed(2)}%)`)}`);
+		} else {
+			console.log(`Difference : $${profitOrLoss.toFixed(2)} (0.00%)`); // Neutral
+		}
+	console.log(`-`);
+	console.log(`Latest Snapshot Balance ${chalk.cyan(selectedTokenA)}: ${chalk.cyan(currBalanceA)}`);
+	console.log(`Latest Snapshot Balance ${chalk.magenta(selectedTokenB)}: ${chalk.magenta(currBalanceB)}`);
+	console.log(`-`);
+	console.log(`Experimental Data Below...`);
+	console.log(`${chalk.cyan(selectedTokenA)} Calculated Change: ${chalk.cyan(profitSumA)}`);
+	console.log(`${chalk.magenta(selectedTokenB)} Calculated Change: ${chalk.magenta(profitSumB)}`);
+	console.log(``);
+};
+
 async function recalculateLayers(tradeSizeInLamports, spreadbps, newPrice) {
 	// Recalculate layers based on the new price
 	console.log("\u{1F504} Calculating new price layers");
@@ -850,8 +879,7 @@ async function sendTransactionAsync(
 	input,
 	output,
 	inputMint,
-	outputMint,
-	//base,
+	outputMint,	
 	delay,
 ) {
 	let orderPubkey = null;
@@ -880,10 +908,8 @@ async function sendTransactionAsync(
 }
 
 async function setOrders() {
-	if (shutDown) return;
-	//let base1 = Keypair.generate();
+	if (shutDown) return;	
 	console.log("");
-	//let base2 = Keypair.generate();
 	try {
 		// Send the "buy" transactions
 		if (shutDown) return;
@@ -892,8 +918,7 @@ async function setOrders() {
 			buyInput,
 			buyOutput,
 			selectedAddressA,
-			selectedAddressB,
-			//base1,
+			selectedAddressB,			
 			1000,
 		);
 		if (buyOrder) {
@@ -907,8 +932,7 @@ async function setOrders() {
 			sellInput,
 			sellOutput,
 			selectedAddressB,
-			selectedAddressA,
-			//base2,
+			selectedAddressA,			
 			1000,
 		);
 		if (sellOrder) {
@@ -933,9 +957,7 @@ async function getTxFee(txhash) {
 }
 
 async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
-	if (shutDown) return;
-	// Dynamically import ora
-	const ora = await import("ora").then((module) => module.default);
+	if (shutDown) return;	
 
 	// Initialize the spinner
 	const spinner = ora("Sending transaction...").start();
@@ -1095,9 +1117,7 @@ async function rebalanceTokens(
 	}
 }
 
-async function checkOpenOrders() {
-	// Record the start time
-	const startTime = new Date();
+async function checkOpenOrders() {	
 	openOrders.length = 0;
 	checkArray.length = 0;
 
@@ -1108,52 +1128,13 @@ async function checkOpenOrders() {
 
 	// Create an array to hold publicKey values
 	checkArray = openOrders.map((order) => order.publicKey.toString());
-
-	// Record the end time
-	const endTime = new Date();
-
-	// Calculate the time difference in milliseconds
-	const elapsedTime = endTime - startTime;
-
-	// Log the elapsed time
-	console.log(`Open Order Check took ${elapsedTime} milliseconds`);
-	console.log("");
-	if (profitA != null && profitB != null) {
-		console.log(
-			`Profits Since Last Reset: (${selectedTokenA}): $${profitA.toFixed(2)}`,
-		);
-		console.log(
-			`Profits Since Last Reset: (${selectedTokenB}): $${profitB.toFixed(2)}`,
-		);
-		console.log("");
-		console.log(`Current Balance: $${currUsdTotalBalance.toFixed(2)}`);
-		console.log(`Start Balance: $${initUsdTotalBalance}`);
-		console.log(`-`);
-		console.log(`Current Calculated A Profit: ${profitSumA}`);
-		console.log(`Current Calculated B Profit: ${profitSumB}`);
-		console.log(`-`);
-		console.log(`Current Snapshot A: ${currBalanceA}`);
-		console.log(`Current Snapshot B: ${currBalanceB}`);
-		console.log(`-`);
-		console.log(`Total Profits: $${totalProfit}`);
-
-		console.log(
-			`Balance Percent Change Since Start: ${balancePercentageChange.toFixed(2)}%`,
-		);
-		//console.log(
-		//	`Market Percent Change Since Start: ${marketPercentageChange.toFixed(2)}%`,
-		//);
-	} else {
-		console.log("Please wait for first orders to fill before statistics");
-	}
 }
 
 async function cancelOrder(checkArray) {
     if (checkArray.length === 0) {
         setOrders();
         return;
-    }
-    const ora = (await import("ora")).default;
+    }    
     const spinner = ora("Cancelling orders...").start();
 
     //Retry parameters
@@ -1240,8 +1221,6 @@ async function cancelOrder(checkArray) {
     }
 }
 
-
-
 async function balanceCheck(){
 	//Update balances and profits
 	let currentBalances = await getBalance(
@@ -1317,10 +1296,10 @@ async function balanceCheck(){
 		100;
 	totalProfit = (profitA + profitB).toFixed(2);
 	console.log(
-		`Balance for Token A (${selectedTokenA}): ${currBalanceA}, $${currentBalances.usdBalanceA.toFixed(2)}`,
+		`Balance for Token A (${chalk.cyan(selectedTokenA)}): ${chalk.cyan(currBalanceA)}, $${chalk.cyan(currentBalances.usdBalanceA.toFixed(2))}`,
 	);
 	console.log(
-		`Balance for Token B (${selectedTokenB}): ${currBalanceB}, $${currentBalances.usdBalanceB.toFixed(2)}`,
+		`Balance for Token B (${chalk.magenta(selectedTokenB)}): ${chalk.magenta(currBalanceB)}, $${chalk.magenta(currentBalances.usdBalanceB.toFixed(2))}`,
 	);
 	console.log(
 		`${selectedTokenA} profit since start: $${profitA.toFixed(2)}`,
@@ -1336,8 +1315,7 @@ process.on("SIGINT", () => {
 	shutDown = true;
 
 	(async () => {
-		// Dynamically import ora
-		const ora = (await import("ora")).default;
+		// Dynamically import ora		
 		const spinner = ora(
 			"Preparing to close Jupgrid - Cancelling Orders",
 		).start();
@@ -1441,7 +1419,8 @@ process.on("SIGINT", () => {
 	})();
 });
 
-module.exports = {
-	connection,
-	initialize
+export { 
+	connection, 
+	initialize 
 };
+

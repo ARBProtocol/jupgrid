@@ -2,10 +2,11 @@
 	"name": "jup-grid",
 	"version": "0.2.1",
 	"description": "JupGrid",
+	"type": "module",
 	"main": "src/jupgrid.js",
 	"author": {
 		"name": "SpuddyA7X - @SpuddyA7X"
-	},
+	},	
 	"devDependencies": {
 		"eslint": "^8.21.0",
 		"prettier": "^3.2.5"
@@ -40,6 +41,7 @@
 		"@solana/web3.js": "^1.90.0",
 		"axios": "^1.6.7",
 		"bs58": "^5.0.0",
+		"chalk": "^5.3.0",
 		"colors": "^1.4.0",
 		"cross-fetch": "^4.0.0",
 		"dotenv": "^16.4.1",
