@@ -90,6 +90,8 @@ let {
 	profitB = null,
 	profitSumA = 0,
 	profitSumB = 0,
+	buysFilled = 0,
+	sellsFilled = 0,
 	totalProfit = null,
 	monitorDelay = null,
 	buyKey = null,
@@ -796,11 +798,13 @@ async function monitorPrice(
 						currCalcBalB = prevBalB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
 						profitSumA = profitSumA - (buyInput / Math.pow(10, selectedDecimalsA));
 						profitSumB = profitSumB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
+						buysFilled++
 					} else if (missingKeys.includes("Sell Key")) {
 						currCalcBalA = prevBalA + ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsA));
 						currCalcBalB = prevBalB - (sellInput / Math.pow(10, selectedDecimalsB));
 						profitSumA = profitSumA + ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsA));
 						profitSumB = profitSumB - (sellInput / Math.pow(10, selectedDecimalsB));
+						sellsFilled++
 					}					
 					prevBalA = currCalcBalA;
 					prevBalB = currCalcBalB;
@@ -841,13 +845,13 @@ async function updateMainDisplay(){
 	formatElapsedTime(startTime);
 	console.log(`Settings: ${chalk.cyan(selectedTokenA)}/${chalk.magenta(selectedTokenB)} - Spread: ${spread}%`)
 	console.log(`-`);
+
 	if (profitA === null && profitB === null) {		
 		console.log("Please wait for first orders to fill before statistics");
 		currUsdTotalBalance = initUsdTotalBalance;
 	}
 	console.log(`Starting Balance : $${initUsdTotalBalance.toFixed(2)}`);
 	console.log(`Current Balance  : $${currUsdTotalBalance.toFixed(2)}`);
-
 	let profitOrLoss = currUsdTotalBalance - initUsdTotalBalance;
 	let percentageChange = (profitOrLoss / initUsdTotalBalance) * 100;
 		if (profitOrLoss > 0) {
@@ -858,12 +862,16 @@ async function updateMainDisplay(){
 			console.log(`Difference : $${profitOrLoss.toFixed(2)} (0.00%)`); // Neutral
 		}
 	console.log(`-`);
+
 	console.log(`Latest Snapshot Balance ${chalk.cyan(selectedTokenA)}: ${chalk.cyan(currBalanceA.toFixed(5))}`);
 	console.log(`Latest Snapshot Balance ${chalk.magenta(selectedTokenB)}: ${chalk.magenta(currBalanceB.toFixed(5))}`);
 	console.log(`-`);
+
 	console.log(`Experimental Data Below...`);
 	console.log(`${chalk.cyan(selectedTokenA)} Calculated Change: ${chalk.cyan(profitSumA.toFixed(5))}`);
 	console.log(`${chalk.magenta(selectedTokenB)} Calculated Change: ${chalk.magenta(profitSumB.toFixed(5))}`);
+	console.log(`Buy Orders Filled: ${buysFilled}`);
+	console.log(`Sell Orders Filled: ${sellsFilled}`);
 	console.log(``);
 };
 
