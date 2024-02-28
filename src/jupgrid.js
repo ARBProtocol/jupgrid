@@ -985,9 +985,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 	while (attempt < maxRetries) {
 		attempt++;
 		try {
-			// Fetch the recent block hash
-			const { blockhash } = await connection.getLatestBlockhash();
-
+			
 			// Make the API call to create the order and get back the transaction details
 			const response = await fetch(
 				"https://jup.ag/api/limit/v1/createOrder",
@@ -1019,7 +1017,8 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			const transactionBuf = Buffer.from(encodedTransaction, "base64");
 			const transaction = solanaWeb3.Transaction.from(transactionBuf);
 
-			// Set the recent block hash and fee payer
+			// Set the recent block hash and fee payer			
+			const { blockhash } = await connection.getLatestBlockhash();
 			transaction.recentBlockhash = blockhash;
 			transaction.feePayer = wallet.publicKey;
 
