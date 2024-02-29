@@ -25,8 +25,8 @@ const version = packageInfo.version;
 
 let [wallet, rpcUrl] = envload();
 
-const connection = new Connection(rpcUrl, "confirmed", {
-	confirmTransactionInitialTimeout: 30000,
+const connection = new Connection(rpcUrl, "processed", {
+	confirmTransactionInitialTimeout: 5000,
 });
 const limitOrder = new LimitOrderProvider(connection);
 
@@ -1018,7 +1018,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			const transaction = solanaWeb3.Transaction.from(transactionBuf);
 
 			// Set the recent block hash and fee payer			
-			const { blockhash } = await connection.getLatestBlockhash();
+			const { blockhash } = await connection.getLatestBlockhash('processed');
 			transaction.recentBlockhash = blockhash;
 			transaction.feePayer = wallet.publicKey;
 
@@ -1030,7 +1030,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 				transaction,
 				signers,
 				{
-					commitment: "confirmed",
+					commitment: "processed",
 					preflightCommitment: "processed",
 				},
 			);
@@ -1121,10 +1121,10 @@ async function rebalanceTokens(
 		const rawTransaction = transaction.serialize();
 		const txid = await connection.sendRawTransaction(rawTransaction, {
 			skipPreflight: false,
-			preflightCommitment: "confirmed",
+			preflightCommitment: "processed",
 			maxRetries: 5,
 		});
-		await connection.confirmTransaction(txid, "confirmed");
+		await connection.confirmTransaction(txid, "processed");
 		console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
 	} catch (error) {
 		console.error("Error during the transaction:", error);
@@ -1211,7 +1211,7 @@ async function cancelOrder(checkArray) {
                 {
                     skipPreflight: false,
                     preflightCommitment: "processed",
-                    commitment: "confirmed",
+                    commitment: "processed",
                 },
             );
 
@@ -1397,7 +1397,7 @@ process.on("SIGINT", () => {
 						{
 							skipPreflight: false,
 							preflightCommitment: "processed",
-							commitment: "confirmed",
+							commitment: "processed",
 						},
 					);
 
