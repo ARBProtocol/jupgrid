@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from 'fs';
 
 class TradeLogger {
 	constructor() {
@@ -8,13 +8,13 @@ class TradeLogger {
 	}
 
 	initLog() {
-		// read userSettings.json and create log object
+		// Read userSettings.json and create log object
 		this.log = {
 			settings: JSON.parse(fs.readFileSync("userSettings.json")),
-			log: [],
+			log: []
 		};
 
-		// write initial file
+		// Write initial file
 		this.writeLog();
 
 		this.initialized = true;
@@ -29,7 +29,7 @@ class TradeLogger {
 	}
 
 	logTrade(object) {
-		// validate object type
+		// Validate object type
 		if (object.type !== "placement" && object.type !== "closure") {
 			console.error("Invalid object type");
 			return;

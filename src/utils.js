@@ -1,17 +1,17 @@
-import axios from "axios";
-import crypto from "crypto";
-import fs from "fs";
-import readline from "readline";
-
-//import { connection } from './jupgrid.js';
+import axios from 'axios';
+import crypto from 'crypto';
+import fs from 'fs';
+import readline from 'readline';
 
 function delay(ms) {
-	return new Promise((resolve) => setTimeout(resolve, ms));
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
 
 const rl = readline.createInterface({
 	input: process.stdin,
-	output: process.stdout,
+	output: process.stdout
 });
 
 function questionAsync(question) {
@@ -22,11 +22,11 @@ function questionAsync(question) {
 
 async function downloadTokensList() {
 	const response = await axios.get("https://token.jup.ag/strict");
-	const data = response.data;
-	let tokens = data.map(({ symbol, address, decimals }) => ({
+	const { data } = response;
+	const tokens = data.map(({ symbol, address, decimals }) => ({
 		symbol,
 		address,
-		decimals,
+		decimals
 	}));
 	fs.writeFileSync("tokens.txt", JSON.stringify(tokens));
 	return data;
@@ -51,7 +51,7 @@ class Encrypter {
 		const encrypted = cipher.update(clearText, "utf8", "hex");
 		return [
 			encrypted + cipher.final("hex"),
-			Buffer.from(iv).toString("hex"),
+			Buffer.from(iv).toString("hex")
 		].join("|");
 	}
 
@@ -61,7 +61,7 @@ class Encrypter {
 		const decipher = crypto.createDecipheriv(
 			this.algorithm,
 			this.key,
-			Buffer.from(iv, "hex"),
+			Buffer.from(iv, "hex")
 		);
 		return (
 			decipher.update(encrypted, "hex", "utf8") + decipher.final("utf8")
