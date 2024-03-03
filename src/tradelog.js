@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from 'fs';
 
 class TradeLogger {
 	constructor() {
@@ -8,9 +8,9 @@ class TradeLogger {
 	}
 
 	initLog() {
-		// read userdata.json and create log object
+		// read userSettings.json and create log object
 		this.log = {
-			settings: JSON.parse(fs.readFileSync("userData.json")),
+			settings: JSON.parse(fs.readFileSync("userSettings.json")),
 			log: [],
 		};
 

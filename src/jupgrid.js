@@ -1,21 +1,28 @@
-import axios from "axios";
-import chalk from "chalk";
-import fetch from "cross-fetch";
-import * as fs from "fs";
-import ora from "ora";
+import axios from 'axios';
+import chalk from 'chalk';
+import fetch from 'cross-fetch';
+import * as fs from 'fs';
+import ora from 'ora';
 
-import { LimitOrderProvider, ownerFilter } from "@jup-ag/limit-order-sdk";
-import * as solanaWeb3 from "@solana/web3.js";
-
-import packageInfo from "../package.json" assert { type: "json" };
-import { envload, loadUserData, saveUserData } from "./settings.js";
 import {
-	delay,
-	downloadTokensList,
-	getTokens,
-	questionAsync,
-	rl,
-} from "./utils.js";
+  LimitOrderProvider,
+  ownerFilter,
+} from '@jup-ag/limit-order-sdk';
+import * as solanaWeb3 from '@solana/web3.js';
+
+import packageInfo from '../package.json' assert { type: 'json' };
+import {
+  envload,
+  loaduserSettings,
+  saveuserSettings,
+} from './settings.js';
+import {
+  delay,
+  downloadTokensList,
+  getTokens,
+  questionAsync,
+  rl,
+} from './utils.js';
 
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 
@@ -98,7 +105,7 @@ let {
 	txFeeSell = 0,
 	txFeeCancel = 0,
 	recoveredTransactionsCount = 0,
-	userData = {
+	userSettings = {
 		selectedTokenA: null,
 		selectedTokenB: null,
 		tradeSize: null,
@@ -115,7 +122,7 @@ async function loadQuestion() {
 		await downloadTokensList();
 		console.log("Updated Token List\n");
 
-		if (!fs.existsSync("userData.json")) {
+		if (!fs.existsSync("userSettings.json")) {
 			console.log("No user data found. Starting with fresh inputs.");
 			initialize();
 		} else {
@@ -128,30 +135,30 @@ async function loadQuestion() {
 						if (responseQ === "Y") {
 							try {
 								// Show user data
-								const userData = loadUserData();
+								const userSettings = loaduserSettings();
 								console.log("User data loaded successfully.");
 								console.log(
-									`Token A: ${userData.selectedTokenA}`,
+									`Token A: ${userSettings.selectedTokenA}`,
 								);
 								console.log(
-									`Token B: ${userData.selectedTokenB}`,
+									`Token B: ${userSettings.selectedTokenB}`,
 								);
 								console.log(
-									`Order Size (in ${userData.selectedTokenA}): ${userData.tradeSize}`,
+									`Order Size (in ${userSettings.selectedTokenA}): ${userSettings.tradeSize}`,
 								);
-								console.log(`Spread: ${userData.spread}`);
+								console.log(`Spread: ${userSettings.spread}`);
 								console.log(
-									`Monitoring delay: ${userData.monitorDelay}ms`,
+									`Monitoring delay: ${userSettings.monitorDelay}ms`,
 								);
 								console.log(
-									`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`,
+									`Rebalancing is ${userSettings.rebalanceAllowed ? "enabled" : "disabled"}`,
 								);
-								if (userData.rebalanceAllowed) {
+								if (userSettings.rebalanceAllowed) {
 									console.log(
-										`Rebalance Threshold: ${userData.rebalancePercentage}%`,
+										`Rebalance Threshold: ${userSettings.rebalancePercentage}%`,
 									);
 									console.log(
-										`Rebalance Swap Slippage: ${userData.rebalanceSlippageBPS / 100}%`,
+										`Rebalance Swap Slippage: ${userSettings.rebalanceSlippageBPS / 100}%`,
 									);
 								}
 
@@ -176,7 +183,7 @@ async function loadQuestion() {
 												rebalancePercentage,
 												rebalanceSlippageBPS,
 												monitorDelay,
-											} = userData);
+											} = userSettings);
 											console.log(
 												"Settings applied successfully!",
 											);
@@ -259,17 +266,17 @@ async function initialize() {
 
 		tokens = await getTokens();
 
-		if (userData.selectedTokenA) {
+		if (userSettings.selectedTokenA) {
 			const tokenAExists = tokens.some(
-				(token) => token.symbol === userData.selectedTokenA,
+				(token) => token.symbol === userSettings.selectedTokenA,
 			);
 			if (!tokenAExists) {
 				console.log(
-					`Token ${userData.selectedTokenA} from user data not found in the updated token list. Please re-enter.`,
+					`Token ${userSettings.selectedTokenA} from user data not found in the updated token list. Please re-enter.`,
 				);
-				userData.selectedTokenA = null; // Reset selected token A
-				userData.selectedAddressA = null; // Reset selected address
-				userData.selectedDecimalsA = null; // Reset selected token decimals
+				userSettings.selectedTokenA = null; // Reset selected token A
+				userSettings.selectedAddressA = null; // Reset selected address
+				userSettings.selectedDecimalsA = null; // Reset selected token decimals
 			} else {
 				validTokenA = true;
 			}
@@ -303,17 +310,17 @@ async function initialize() {
 			}
 		}
 
-		if (userData.selectedTokenB) {
+		if (userSettings.selectedTokenB) {
 			const tokenBExists = tokens.some(
-				(token) => token.symbol === userData.selectedTokenB,
+				(token) => token.symbol === userSettings.selectedTokenB,
 			);
 			if (!tokenBExists) {
 				console.log(
-					`Token ${userData.selectedTokenB} from user data not found in the updated token list. Please re-enter.`,
+					`Token ${userSettings.selectedTokenB} from user data not found in the updated token list. Please re-enter.`,
 				);
-				userData.selectedTokenB = null; // Reset selected token B
-				userData.selectedAddressB = null; // Reset selected address
-				userData.selectedDecimalsB = null; // Reset selected token decimals
+				userSettings.selectedTokenB = null; // Reset selected token B
+				userSettings.selectedAddressB = null; // Reset selected address
+				userSettings.selectedDecimalsB = null; // Reset selected token decimals
 			} else {
 				validTokenB = true;
 			}
@@ -349,13 +356,13 @@ async function initialize() {
 		const selectedTradeToken = "a";
 
 		// Check if trade size is valid
-		if (userData.tradeSize) {
-			validTradeSize = !isNaN(parseFloat(userData.tradeSize));
+		if (userSettings.tradeSize) {
+			validTradeSize = !isNaN(parseFloat(userSettings.tradeSize));
 			if (!validTradeSize) {
 				console.log(
 					"Invalid trade size found in user data. Please re-enter.",
 				);
-				userData.tradeSize = null; // Reset trade size
+				userSettings.tradeSize = null; // Reset trade size
 			} else validTradeSize = true;
 		}
 
@@ -366,7 +373,7 @@ async function initialize() {
 			);
 			tradeSize = parseFloat(tradeSizeInput);
 			if (!isNaN(tradeSize)) {
-				userData.tradeSize = tradeSize;
+				userSettings.tradeSize = tradeSize;
 				validTradeSize = true;
 			} else {
 				console.log("Invalid trade size. Please enter a valid number.");
@@ -375,13 +382,13 @@ async function initialize() {
 
 		// Ask user for spread %
 		// Check if spread percentage is valid
-		if (userData.spread) {
-			validSpread = !isNaN(parseFloat(userData.spread));
+		if (userSettings.spread) {
+			validSpread = !isNaN(parseFloat(userSettings.spread));
 			if (!validSpread) {
 				console.log(
 					"Invalid spread percentage found in user data. Please re-enter.",
 				);
-				userData.spread = null; // Reset spread percentage
+				userSettings.spread = null; // Reset spread percentage
 			} else validSpread = true;
 		}
 
@@ -392,7 +399,7 @@ async function initialize() {
 			);
 			spread = parseFloat(spreadInput);
 			if (!isNaN(spread)) {
-				userData.spread = spread;
+				userSettings.spread = spread;
 				validSpread = true;
 			} else {
 				console.log(
@@ -526,7 +533,7 @@ async function initialize() {
 			//Get Lamports for Sell Output
 			sellOutput = tradeSizeInLamports;
 
-			saveUserData(
+			saveuserSettings(
 				selectedTokenA,
 				selectedAddressA,
 				selectedDecimalsA,

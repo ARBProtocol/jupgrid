@@ -1,13 +1,13 @@
-import bs58 from "bs58";
-import dotenv from "dotenv";
-import fs from "fs";
-import promptSync from "prompt-sync";
+import bs58 from 'bs58';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import promptSync from 'prompt-sync';
 
-import { Wallet } from "@project-serum/anchor";
-import * as solanaWeb3 from "@solana/web3.js";
+import { Wallet } from '@project-serum/anchor';
+import * as solanaWeb3 from '@solana/web3.js';
 
-import { initialize } from "./jupgrid.js";
-import * as utils from "./utils.js";
+import { initialize } from './jupgrid.js';
+import * as utils from './utils.js';
 
 const prompt = promptSync({ sigint: true });
 
@@ -83,7 +83,7 @@ function envload() {
 	}
 }
 
-function saveUserData(
+function saveuserSettings(
 	selectedTokenA,
 	selectedAddressA,
 	selectedDecimalsA,
@@ -99,7 +99,7 @@ function saveUserData(
 ) {
 	try {
 		fs.writeFileSync(
-			"userData.json",
+			"userSettings.json",
 			JSON.stringify(
 				{
 					selectedTokenA,
@@ -125,15 +125,15 @@ function saveUserData(
 	}
 }
 
-function loadUserData() {
+function loaduserSettings() {
 	try {
-		const data = fs.readFileSync("userData.json");
-		const userData = JSON.parse(data);
-		return userData;
+		const data = fs.readFileSync("userSettings.json");
+		const userSettings = JSON.parse(data);
+		return userSettings;
 	} catch (error) {
 		console.log("No user data found. Starting with fresh inputs.");
 		initialize();
 	}
 }
 
-export { envload, loadUserData, saveUserData };
+export { envload, loaduserSettings, saveuserSettings };

@@ -65,7 +65,7 @@ The `.env` file will need to contain your Phantom Wallet Private Key and URL to 
 -   `RPC_URL`=YourRPCURLHere
 -   `PRIVATE_KEY`=YourPrivateKeyHere
 
-There will also be a `userData.json` file created. This will contain data on the parameters you set during setup.
+There will also be a `userSettings.json` file created. This will contain data on the parameters you set during setup.
 
 ## Contributing 🤝
 
