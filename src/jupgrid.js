@@ -1,21 +1,29 @@
-import axios from "axios";
-import chalk from "chalk";
-import fetch from "cross-fetch";
-import * as fs from "fs";
-import ora from "ora";
+import axios from 'axios';
+import chalk from 'chalk';
+import fetch from 'cross-fetch';
+import * as fs from 'fs';
+import ora from 'ora';
 
-import { LimitOrderProvider, ownerFilter } from "@jup-ag/limit-order-sdk";
-import * as solanaWeb3 from "@solana/web3.js";
+import {
+	LimitOrderProvider,
+	ownerFilter
+} from '@jup-ag/limit-order-sdk';
+import * as solanaWeb3 from '@solana/web3.js';
 
-import packageInfo from "../package.json" assert { type: "json" };
-import { envload, loaduserSettings, saveuserSettings } from "./settings.js";
+import packageInfo from '../package.json' assert { type: 'json' };
+import {
+	envload,
+	loaduserSettings,
+	saveuserSettings
+} from './settings.js';
 import {
 	delay,
 	downloadTokensList,
+	getTokenAccounts,
 	getTokens,
 	questionAsync,
-	rl,
-} from "./utils.js";
+	rl
+} from './utils.js';
 
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 
@@ -674,13 +682,11 @@ async function getBalance(
 			return getSOLBalanceAndUSDC();
 		}
 
-		const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+		const tokenAccounts = await getTokenAccounts(
+			connection,
 			wallet.publicKey,
-			{
-				mint: new solanaWeb3.PublicKey(mintAddress),
-			},
+			mintAddress,
 		);
-
 		if (tokenAccounts.value.length > 0) {
 			const balance =
 				tokenAccounts.value[0].account.data.parsed.info.tokenAmount
@@ -882,7 +888,7 @@ async function monitorPrice(
 				}
 			} else {
 				console.log("2 open orders. Waiting for change.");
-				console.log(sortedLayers);
+				//console.log(sortedLayers);
 				await delay(monitorDelay);
 				return monitorPrice(
 					selectedAddressA,
