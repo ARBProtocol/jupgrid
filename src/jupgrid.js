@@ -1,26 +1,24 @@
-import * as solanaWeb3 from '@solana/web3.js';
+import axios from "axios";
+import chalk from "chalk";
+import fetch from "cross-fetch";
+import * as fs from "fs";
+import ora from "ora";
+
+import { LimitOrderProvider, ownerFilter } from "@jup-ag/limit-order-sdk";
+import * as solanaWeb3 from "@solana/web3.js";
+
+import packageInfo from "../package.json" assert { type: "json" };
+import { envload, loadUserData, saveUserData } from "./settings.js";
+import {
+	delay,
+	downloadTokensList,
+	getTokens,
+	questionAsync,
+	rl,
+} from "./utils.js";
+
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 
-import { ownerFilter, LimitOrderProvider } from '@jup-ag/limit-order-sdk';
-
-import fetch from 'cross-fetch';
-import axios from 'axios';
-import * as fs from 'fs';
-
-import { envload, saveUserData, loadUserData } from './settings.js';
-
-import {
-  delay,
-  rl,
-  questionAsync,
-  downloadTokensList,
-  getTokens,
-} from './utils.js';
-
-import ora from 'ora';
-
-import chalk from 'chalk';
-import packageInfo from '../package.json' assert { type: 'json' };
 const version = packageInfo.version;
 
 let [wallet, rpcUrl] = envload();
@@ -113,95 +111,115 @@ let {
 } = {};
 
 async function loadQuestion() {
-    try {
-        await downloadTokensList();
-        console.log("Updated Token List\n");
+	try {
+		await downloadTokensList();
+		console.log("Updated Token List\n");
 
-        if (!fs.existsSync("userData.json")) {
-            console.log("No user data found. Starting with fresh inputs.");
-            initialize();
-        } else {
-            const askForLoadSettings = () => {
-                rl.question("Do you wish to load your saved settings? (Y/N): ", function(responseQ) {
-                    responseQ = responseQ.toUpperCase(); // Case insensitivity
+		if (!fs.existsSync("userData.json")) {
+			console.log("No user data found. Starting with fresh inputs.");
+			initialize();
+		} else {
+			const askForLoadSettings = () => {
+				rl.question(
+					"Do you wish to load your saved settings? (Y/N): ",
+					function (responseQ) {
+						responseQ = responseQ.toUpperCase(); // Case insensitivity
 
-                    if (responseQ === "Y") {
-                        try {
-                            // Show user data
-                            const userData = loadUserData();
-                            console.log("User data loaded successfully.");
-							console.log(`Token A: ${userData.selectedTokenA}`);
-							console.log(`Token B: ${userData.selectedTokenB}`);
-							console.log(
-								`Order Size (in ${userData.selectedTokenA}): ${userData.tradeSize}`,
-							);
-							console.log(`Spread: ${userData.spread}`);
-							console.log(
-								`Monitoring delay: ${userData.monitorDelay}ms`,
-							);
-							console.log(
-								`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`,
-							);
-							if (userData.rebalanceAllowed) {
+						if (responseQ === "Y") {
+							try {
+								// Show user data
+								const userData = loadUserData();
+								console.log("User data loaded successfully.");
 								console.log(
-									`Rebalance Threshold: ${userData.rebalancePercentage}%`,
+									`Token A: ${userData.selectedTokenA}`,
 								);
 								console.log(
-									`Rebalance Swap Slippage: ${userData.rebalanceSlippageBPS / 100}%`,
+									`Token B: ${userData.selectedTokenB}`,
 								);
-							}
+								console.log(
+									`Order Size (in ${userData.selectedTokenA}): ${userData.tradeSize}`,
+								);
+								console.log(`Spread: ${userData.spread}`);
+								console.log(
+									`Monitoring delay: ${userData.monitorDelay}ms`,
+								);
+								console.log(
+									`Rebalancing is ${userData.rebalanceAllowed ? "enabled" : "disabled"}`,
+								);
+								if (userData.rebalanceAllowed) {
+									console.log(
+										`Rebalance Threshold: ${userData.rebalancePercentage}%`,
+									);
+									console.log(
+										`Rebalance Swap Slippage: ${userData.rebalanceSlippageBPS / 100}%`,
+									);
+								}
 
-							// Prompt for confirmation to use these settings
-							rl.question("Proceed with these settings? (Y/N): ", function(confirmResponse) {
-                                confirmResponse = confirmResponse.toUpperCase();
-                                if (confirmResponse === "Y") {
-										// Apply loaded settings
-										({
-											selectedTokenA,
-											selectedAddressA,
-											selectedDecimalsA,
-											selectedTokenB,
-											selectedAddressB,
-											selectedDecimalsB,
-											tradeSize,
-											spread,
-											rebalanceAllowed,
-											rebalancePercentage,
-											rebalanceSlippageBPS,
-											monitorDelay,
-										} = userData);
-										console.log(
-											"Settings applied successfully!",
-										);
-										initialize();
-									} else if (confirmResponse === "N") {
-										console.log("Discarding saved settings, please continue.");
-										initialize(); // Start initialization with blank settings
-									} else {
-										console.log("Invalid response. Please type 'Y' or 'N'.");
-										askForLoadSettings(); // Re-ask the original question
-									}
-								});
+								// Prompt for confirmation to use these settings
+								rl.question(
+									"Proceed with these settings? (Y/N): ",
+									function (confirmResponse) {
+										confirmResponse =
+											confirmResponse.toUpperCase();
+										if (confirmResponse === "Y") {
+											// Apply loaded settings
+											({
+												selectedTokenA,
+												selectedAddressA,
+												selectedDecimalsA,
+												selectedTokenB,
+												selectedAddressB,
+												selectedDecimalsB,
+												tradeSize,
+												spread,
+												rebalanceAllowed,
+												rebalancePercentage,
+												rebalanceSlippageBPS,
+												monitorDelay,
+											} = userData);
+											console.log(
+												"Settings applied successfully!",
+											);
+											initialize();
+										} else if (confirmResponse === "N") {
+											console.log(
+												"Discarding saved settings, please continue.",
+											);
+											initialize(); // Start initialization with blank settings
+										} else {
+											console.log(
+												"Invalid response. Please type 'Y' or 'N'.",
+											);
+											askForLoadSettings(); // Re-ask the original question
+										}
+									},
+								);
 							} catch (error) {
-								console.error("Failed to load settings:", error);
+								console.error(
+									"Failed to load settings:",
+									error,
+								);
 								initialize(); // Proceed with initialization in case of error
 							}
 						} else if (responseQ === "N") {
 							console.log("Starting with blank settings.");
 							initialize();
 						} else {
-							console.log("Invalid response. Please type 'Y' or 'N'.");
+							console.log(
+								"Invalid response. Please type 'Y' or 'N'.",
+							);
 							askForLoadSettings(); // Re-ask if the response is not Y/N
 						}
-					});
-				};
-	
-				askForLoadSettings(); // Start the question loop
-			}
-		} catch (error) {
-			console.error("Error:", error);
+					},
+				);
+			};
+
+			askForLoadSettings(); // Start the question loop
 		}
+	} catch (error) {
+		console.error("Error:", error);
 	}
+}
 
 async function initialize() {
 	try {
@@ -524,7 +542,7 @@ async function initialize() {
 			);
 			console.clear();
 			console.log("\n\u{1F680} Starting Jupgrid!");
-			
+
 			let initialBalances = await getBalance(
 				wallet,
 				selectedAddressA,
@@ -688,13 +706,13 @@ async function getBalance(
 		);
 		process.exit(0);
 	}
-		prevBalA = resultA.balance;
-		prevBalB = resultB.balance;
+	prevBalA = resultA.balance;
+	prevBalB = resultB.balance;
 	return {
-		balanceA: resultA.balance,		
+		balanceA: resultA.balance,
 		usdBalanceA: resultA.usdBalance,
 		tokenARebalanceValue: resultA.tokenRebalanceValue,
-		balanceB: resultB.balance,		
+		balanceB: resultB.balance,
 		usdBalanceB: resultB.usdBalance,
 		tokenBRebalanceValue: resultB.tokenRebalanceValue,
 	};
@@ -741,13 +759,19 @@ async function monitorPrice(
 					amount: tradeSizeInLamports,
 					slippageBps: 0,
 				};
-			
-				const response = await axios.get(quoteurl, { params: queryParams });
+
+				const response = await axios.get(quoteurl, {
+					params: queryParams,
+				});
 				const newPrice = response.data.outAmount;
-			
+
 				if (checkArray.length === 0) {
 					console.log("No orders found. Resetting.");
-					await recalculateLayers(tradeSizeInLamports, spreadbps, newPrice);
+					await recalculateLayers(
+						tradeSizeInLamports,
+						spreadbps,
+						newPrice,
+					);
 				} else if (checkArray.length === 1) {
 					// Identify which key(s) are missing
 					if (!checkArray.includes(buyKey)) {
@@ -758,38 +782,77 @@ async function monitorPrice(
 					if (!checkArray.includes(sellKey)) {
 						missingKeys.push("Sell Key");
 					} else {
-						remainingKeys.push("Sell Key"); // Sell Key is not missing, so it's remaining						
+						remainingKeys.push("Sell Key"); // Sell Key is not missing, so it's remaining
 					}
-			
+
 					// Adjust balances and profits based on which key is missing
 					if (missingKeys.includes("Buy Key")) {
-						currCalcBalA = prevBalA - (buyInput / Math.pow(10, selectedDecimalsA));
-						currCalcBalB = prevBalB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
-						profitSumA = profitSumA - (buyInput / Math.pow(10, selectedDecimalsA));
-						profitSumB = profitSumB + ((buyOutput * 0.999) / Math.pow(10, selectedDecimalsB));
-						buysFilled++
+						currCalcBalA =
+							prevBalA -
+							buyInput / Math.pow(10, selectedDecimalsA);
+						currCalcBalB =
+							prevBalB +
+							(buyOutput * 0.999) /
+								Math.pow(10, selectedDecimalsB);
+						profitSumA =
+							profitSumA -
+							buyInput / Math.pow(10, selectedDecimalsA);
+						profitSumB =
+							profitSumB +
+							(buyOutput * 0.999) /
+								Math.pow(10, selectedDecimalsB);
+						buysFilled++;
 					} else if (missingKeys.includes("Sell Key")) {
-						currCalcBalA = prevBalA + ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsA));
-						currCalcBalB = prevBalB - (sellInput / Math.pow(10, selectedDecimalsB));
-						profitSumA = profitSumA + ((sellOutput * 0.999) / Math.pow(10, selectedDecimalsA));
-						profitSumB = profitSumB - (sellInput / Math.pow(10, selectedDecimalsB));
-						sellsFilled++
-					}					
+						currCalcBalA =
+							prevBalA +
+							(sellOutput * 0.999) /
+								Math.pow(10, selectedDecimalsA);
+						currCalcBalB =
+							prevBalB -
+							sellInput / Math.pow(10, selectedDecimalsB);
+						profitSumA =
+							profitSumA +
+							(sellOutput * 0.999) /
+								Math.pow(10, selectedDecimalsA);
+						profitSumB =
+							profitSumB -
+							sellInput / Math.pow(10, selectedDecimalsB);
+						sellsFilled++;
+					}
 					prevBalA = currCalcBalA;
 					prevBalB = currCalcBalB;
-					
-					console.log("Missing Key: " + missingKeys[0] + ". Resetting price points and placing new orders.");
-					await recalculateLayers(tradeSizeInLamports, spreadbps, newPrice);
+
+					console.log(
+						"Missing Key: " +
+							missingKeys[0] +
+							". Resetting price points and placing new orders.",
+					);
+					await recalculateLayers(
+						tradeSizeInLamports,
+						spreadbps,
+						newPrice,
+					);
 				} else if (checkArray.length > 2) {
-					console.log("Excessive orders found, identifying valid orders and resetting.");
-					await recalculateLayers(tradeSizeInLamports, spreadbps, newPrice);
+					console.log(
+						"Excessive orders found, identifying valid orders and resetting.",
+					);
+					await recalculateLayers(
+						tradeSizeInLamports,
+						spreadbps,
+						newPrice,
+					);
 					// Here, you'd identify which orders are valid, potentially adjusting remainingKeys accordingly
-				}			
+				}
 			} else {
 				console.log("2 open orders. Waiting for change.");
 				await delay(monitorDelay);
-				return monitorPrice(selectedAddressA, selectedAddressB, tradeSizeInLamports, maxRetries);
-			}			
+				return monitorPrice(
+					selectedAddressA,
+					selectedAddressB,
+					tradeSizeInLamports,
+					maxRetries,
+				);
+			}
 
 			break; // Break the loop if we've successfully handled the price monitoring
 		} catch (error) {
@@ -808,7 +871,7 @@ async function monitorPrice(
 	}
 }
 
-async function updateUSDVal (mintAddress, balance, decimals){
+async function updateUSDVal(mintAddress, balance, decimals) {
 	const queryParams = {
 		inputMint: mintAddress,
 		outputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -823,23 +886,33 @@ async function updateUSDVal (mintAddress, balance, decimals){
 		//Save USD Balance and adjust down for Lamports
 		const usdBalance = response.data.outAmount / Math.pow(10, 6);
 		return usdBalance;
-	} catch (error){
+	} catch (error) {
 		//Error is not critical. Reuse the previous balances and try another update again next cycle.
 	}
-};
+}
 
-async function updateMainDisplay(){
+async function updateMainDisplay() {
 	console.clear();
 	console.log(`Jupgrid v${version}`);
 	formatElapsedTime(startTime);
-	console.log(`Settings: ${chalk.cyan(selectedTokenA)}/${chalk.magenta(selectedTokenB)} - Spread: ${spread}%`)
+	console.log(
+		`Settings: ${chalk.cyan(selectedTokenA)}/${chalk.magenta(selectedTokenB)} - Spread: ${spread}%`,
+	);
 	console.log(`-`);
 
-    try {
+	try {
 		// Attempt to fetch the new USD values
-		const tempUSDBalanceA = await updateUSDVal(selectedAddressA, currBalanceA, selectedDecimalsA);
-		const tempUSDBalanceB = await updateUSDVal(selectedAddressB, currBalanceB, selectedDecimalsB);
-		
+		const tempUSDBalanceA = await updateUSDVal(
+			selectedAddressA,
+			currBalanceA,
+			selectedDecimalsA,
+		);
+		const tempUSDBalanceB = await updateUSDVal(
+			selectedAddressB,
+			currBalanceB,
+			selectedDecimalsB,
+		);
+
 		currUSDBalanceA = tempUSDBalanceA ?? currUSDBalanceA; // Fallback to current value if undefined
 		currUSDBalanceB = tempUSDBalanceB ?? currUSDBalanceB; // Fallback to current value if undefined
 		currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB; // Recalculate total
@@ -851,27 +924,39 @@ async function updateMainDisplay(){
 	console.log(`Current Balance  : $${currUsdTotalBalance.toFixed(2)}`);
 	let profitOrLoss = currUsdTotalBalance - initUsdTotalBalance;
 	let percentageChange = (profitOrLoss / initUsdTotalBalance) * 100;
-		if (profitOrLoss > 0) {
-			console.log(`Profit : ${chalk.green(`+$${profitOrLoss.toFixed(2)} (${percentageChange.toFixed(2)}%)`)}`);
-		} else if (profitOrLoss < 0) {
-			console.log(`Loss : ${chalk.red(`-$${Math.abs(profitOrLoss).toFixed(2)} (${Math.abs(percentageChange).toFixed(2)}%)`)}`);
-		} else {
-			console.log(`Difference : $${profitOrLoss.toFixed(2)} (0.00%)`); // Neutral
-		}
+	if (profitOrLoss > 0) {
+		console.log(
+			`Profit : ${chalk.green(`+$${profitOrLoss.toFixed(2)} (${percentageChange.toFixed(2)}%)`)}`,
+		);
+	} else if (profitOrLoss < 0) {
+		console.log(
+			`Loss : ${chalk.red(`-$${Math.abs(profitOrLoss).toFixed(2)} (${Math.abs(percentageChange).toFixed(2)}%)`)}`,
+		);
+	} else {
+		console.log(`Difference : $${profitOrLoss.toFixed(2)} (0.00%)`); // Neutral
+	}
 	console.log(`-`);
 
-	console.log(`Latest Snapshot Balance ${chalk.cyan(selectedTokenA)}: ${chalk.cyan(currBalanceA.toFixed(5))}`);
-	console.log(`Latest Snapshot Balance ${chalk.magenta(selectedTokenB)}: ${chalk.magenta(currBalanceB.toFixed(5))}`);
+	console.log(
+		`Latest Snapshot Balance ${chalk.cyan(selectedTokenA)}: ${chalk.cyan(currBalanceA.toFixed(5))}`,
+	);
+	console.log(
+		`Latest Snapshot Balance ${chalk.magenta(selectedTokenB)}: ${chalk.magenta(currBalanceB.toFixed(5))}`,
+	);
 	console.log(`-`);
 
 	console.log(`Experimental Data Below...`);
-	console.log(`${chalk.cyan(selectedTokenA)} Calculated Change: ${chalk.cyan(profitSumA.toFixed(5))}`);
-	console.log(`${chalk.magenta(selectedTokenB)} Calculated Change: ${chalk.magenta(profitSumB.toFixed(5))}`);
+	console.log(
+		`${chalk.cyan(selectedTokenA)} Calculated Change: ${chalk.cyan(profitSumA.toFixed(5))}`,
+	);
+	console.log(
+		`${chalk.magenta(selectedTokenB)} Calculated Change: ${chalk.magenta(profitSumB.toFixed(5))}`,
+	);
 	console.log(`Buy Orders Filled: ${buysFilled}`);
 	console.log(`Sell Orders Filled: ${sellsFilled}`);
 	console.log(`Recovered Transactions: ${recoveredTransactionsCount}`);
 	console.log(``);
-};
+}
 
 async function recalculateLayers(tradeSizeInLamports, spreadbps, newPrice) {
 	// Recalculate layers based on the new price
@@ -892,7 +977,7 @@ async function sendTransactionAsync(
 	input,
 	output,
 	inputMint,
-	outputMint,	
+	outputMint,
 	delay,
 ) {
 	let orderPubkey = null;
@@ -908,7 +993,7 @@ async function sendTransactionAsync(
 					base,
 				);
 				if (transaction) {
-					orderPubkey = transaction.orderPubkey;					 
+					orderPubkey = transaction.orderPubkey;
 				}
 				resolve();
 			} catch (error) {
@@ -921,7 +1006,7 @@ async function sendTransactionAsync(
 }
 
 async function setOrders() {
-	if (shutDown) return;	
+	if (shutDown) return;
 	console.log("");
 	try {
 		// Send the "buy" transactions
@@ -931,7 +1016,7 @@ async function setOrders() {
 			buyInput,
 			buyOutput,
 			selectedAddressA,
-			selectedAddressB,			
+			selectedAddressB,
 			1000,
 		);
 		if (buyOrder) {
@@ -945,7 +1030,7 @@ async function setOrders() {
 			sellInput,
 			sellOutput,
 			selectedAddressB,
-			selectedAddressA,			
+			selectedAddressA,
 			1000,
 		);
 		if (sellOrder) {
@@ -970,20 +1055,19 @@ async function getTxFee(txhash) {
 }
 */
 async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
-    if (shutDown) return;
+	if (shutDown) return;
 
-    const spinner = ora("Sending transaction...").start();
+	const spinner = ora("Sending transaction...").start();
 
-    const maxRetries = 5;
-    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+	const maxRetries = 5;
+	const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    let attempt = 0;
-    let blockHeightErrorOccurred = false; // This flag resets with each function call
+	let attempt = 0;
+	let blockHeightErrorOccurred = false; // This flag resets with each function call
 
-    while (attempt < maxRetries) {
-        attempt++;
-        try {
-			
+	while (attempt < maxRetries) {
+		attempt++;
+		try {
 			// Make the API call to create the order and get back the transaction details
 			const response = await fetch(
 				"https://jup.ag/api/limit/v1/createOrder",
@@ -1015,8 +1099,9 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			const transactionBuf = Buffer.from(encodedTransaction, "base64");
 			const transaction = solanaWeb3.Transaction.from(transactionBuf);
 
-			// Set the recent block hash and fee payer			
-			const { blockhash } = await connection.getLatestBlockhash('processed');
+			// Set the recent block hash and fee payer
+			const { blockhash } =
+				await connection.getLatestBlockhash("processed");
 			transaction.recentBlockhash = blockhash;
 			transaction.feePayer = wallet.publicKey;
 
@@ -1032,10 +1117,10 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 					preflightCommitment: "processed",
 				},
 			);
-			
+
 			//let txFee = await getTxFee(txid);
 			//console.log(txFee);
-			
+
 			spinner.succeed(`Transaction confirmed with ID: ${txid}`);
 			console.log(`https://solscan.io/tx/${txid}`);
 			console.log("Order Successful");
@@ -1045,37 +1130,48 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 				txid: txid,
 				orderPubkey: responseData.orderPubkey,
 			};
-        } catch (error) {
-            if (blockHeightErrorOccurred && error.message.toLowerCase().includes("already in use")) {
-                // Increment the global counter for recovered transactions
-                recoveredTransactionsCount += 1;
-                
-                // Log or handle the recovered transaction
-                spinner.info(`Transaction assumed successful after recovery. Total recovered: ${recoveredTransactionsCount}`);
+		} catch (error) {
+			if (
+				blockHeightErrorOccurred &&
+				error.message.toLowerCase().includes("already in use")
+			) {
+				// Increment the global counter for recovered transactions
+				recoveredTransactionsCount += 1;
 
-                // Reset the block height error flag for the next use of the function
-                blockHeightErrorOccurred = false;
+				// Log or handle the recovered transaction
+				spinner.info(
+					`Transaction assumed successful after recovery. Total recovered: ${recoveredTransactionsCount}`,
+				);
 
-                // Return as if successful
-                return {
-                    txid: txid,
-                    orderPubkey: responseData.orderPubkey,
-                    wasRecovered: true
-                };
-            } else if (error.message.toLowerCase().includes("block height exceeded")) {
-                spinner.fail(`Attempt ${attempt} - Block height exceeded error: ${error.message}`);
-                blockHeightErrorOccurred = true;
-                await delay(2000);
-            } else {
-                // Handle all other errors
-                spinner.fail(`Attempt ${attempt} - Error in transaction: ${error.message}`);
-                await delay(2000);
-            }
-        }
-    }
+				// Reset the block height error flag for the next use of the function
+				blockHeightErrorOccurred = false;
+
+				// Return as if successful
+				return {
+					txid: txid,
+					orderPubkey: responseData.orderPubkey,
+					wasRecovered: true,
+				};
+			} else if (
+				error.message.toLowerCase().includes("block height exceeded")
+			) {
+				spinner.fail(
+					`Attempt ${attempt} - Block height exceeded error: ${error.message}`,
+				);
+				blockHeightErrorOccurred = true;
+				await delay(2000);
+			} else {
+				// Handle all other errors
+				spinner.fail(
+					`Attempt ${attempt} - Error in transaction: ${error.message}`,
+				);
+				await delay(2000);
+			}
+		}
+	}
 	//If we get here, its proper broken...
-    blockHeightErrorOccurred = false;
-    throw new Error("Transaction failed after maximum attempts.");
+	blockHeightErrorOccurred = false;
+	throw new Error("Transaction failed after maximum attempts.");
 }
 
 async function rebalanceTokens(
@@ -1143,7 +1239,7 @@ async function rebalanceTokens(
 	}
 }
 
-async function checkOpenOrders() {	
+async function checkOpenOrders() {
 	openOrders.length = 0;
 	checkArray.length = 0;
 
@@ -1157,97 +1253,99 @@ async function checkOpenOrders() {
 }
 
 async function cancelOrder(checkArray) {
-    if (checkArray.length === 0) {
-        setOrders();
-        return;
-    }    
-    const spinner = ora("Cancelling orders...").start();
+	if (checkArray.length === 0) {
+		setOrders();
+		return;
+	}
+	const spinner = ora("Cancelling orders...").start();
 
-    //Retry parameters
-    const maxRetries = 30; // Maximum number of retries
-    const cpause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    let attempt = 1; // Initialize attempt counter
+	//Retry parameters
+	const maxRetries = 30; // Maximum number of retries
+	const cpause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+	let attempt = 1; // Initialize attempt counter
 
-    while (attempt <= maxRetries) {
-        try {
-            openOrders.length = 0;
-            checkArray.length = 0;
+	while (attempt <= maxRetries) {
+		try {
+			openOrders.length = 0;
+			checkArray.length = 0;
 
-            // Simulating your original logic to get orders
-            openOrders = await limitOrder.getOrders([
-                ownerFilter(wallet.publicKey, "processed"),
-            ]);
+			// Simulating your original logic to get orders
+			openOrders = await limitOrder.getOrders([
+				ownerFilter(wallet.publicKey, "processed"),
+			]);
 
-            checkArray = openOrders.map((order) => order.publicKey.toString());
-            if (checkArray.length === 0) {
-                spinner.succeed("No open orders found, resetting.");
-                setOrders();
-                return; // Exit if no orders need cancelling
-            }
+			checkArray = openOrders.map((order) => order.publicKey.toString());
+			if (checkArray.length === 0) {
+				spinner.succeed("No open orders found, resetting.");
+				setOrders();
+				return; // Exit if no orders need cancelling
+			}
 
-            spinner.text = "Please Wait";
+			spinner.text = "Please Wait";
 
-            const requestData = {
-                owner: wallet.publicKey.toString(),
-                feePayer: wallet.publicKey.toString(),
-                orders: Array.from(checkArray),
-            };
+			const requestData = {
+				owner: wallet.publicKey.toString(),
+				feePayer: wallet.publicKey.toString(),
+				orders: Array.from(checkArray),
+			};
 
-            const response = await fetch(
-                "https://jup.ag/api/limit/v1/cancelOrders",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(requestData),
-                },
-            );
+			const response = await fetch(
+				"https://jup.ag/api/limit/v1/cancelOrders",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(requestData),
+				},
+			);
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-						
-            const responseData = await response.json();
-            const transactionBase64 = responseData.tx;
-            const transactionBuf = Buffer.from(transactionBase64, "base64");
-            const transaction = solanaWeb3.Transaction.from(transactionBuf);
+			if (!response.ok) {
+				throw new Error(`HTTP error! Status: ${response.status}`);
+			}
+
+			const responseData = await response.json();
+			const transactionBase64 = responseData.tx;
+			const transactionBuf = Buffer.from(transactionBase64, "base64");
+			const transaction = solanaWeb3.Transaction.from(transactionBuf);
 			const { blockhash } = await connection.getLatestBlockhash();
 			transaction.recentBlockhash = blockhash;
-            const signers = [wallet.payer];
+			const signers = [wallet.payer];
 
-            const txid = await solanaWeb3.sendAndConfirmTransaction(
-                connection,
-                transaction,
-                signers,
-                {
-                    skipPreflight: false,
-                    preflightCommitment: "processed",
-                    commitment: "processed",
-                },
-            );
+			const txid = await solanaWeb3.sendAndConfirmTransaction(
+				connection,
+				transaction,
+				signers,
+				{
+					skipPreflight: false,
+					preflightCommitment: "processed",
+					commitment: "processed",
+				},
+			);
 
-            spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
-            console.log(`Transaction Receipt: https://solscan.io/tx/${txid}`);
+			spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
+			console.log(`Transaction Receipt: https://solscan.io/tx/${txid}`);
 			await balanceCheck();
-            setOrders(); // Calls setOrders and exits if successful
-            return; // Exit after successful processing
-
-			
-        } catch (error) {
-            spinner.fail(`Attempt ${attempt} failed: ${error.message}, retrying...`);
-            if (attempt >= maxRetries) {
-                spinner.fail(`Error canceling order after ${maxRetries} attempts: ${error.message}`);
-                console.error(`Final error canceling orders: ${error.message}`);
-                return; // Exit function after max retries
-            }
-            await cpause(5000); // Exponential backoff or constant delay
-            attempt++; // Increment attempt counter
-        }
-    }
+			setOrders(); // Calls setOrders and exits if successful
+			return; // Exit after successful processing
+		} catch (error) {
+			spinner.fail(
+				`Attempt ${attempt} failed: ${error.message}, retrying...`,
+			);
+			if (attempt >= maxRetries) {
+				spinner.fail(
+					`Error canceling order after ${maxRetries} attempts: ${error.message}`,
+				);
+				console.error(`Final error canceling orders: ${error.message}`);
+				return; // Exit function after max retries
+			}
+			await cpause(5000); // Exponential backoff or constant delay
+			attempt++; // Increment attempt counter
+		}
+	}
 }
 
-async function balanceCheck(){
+async function balanceCheck() {
 	//Update balances and profits
 	let currentBalances = await getBalance(
 		wallet,
@@ -1256,7 +1354,7 @@ async function balanceCheck(){
 		selectedTokenA,
 		selectedTokenB,
 	);
-		console.log("Balances Updated");
+	console.log("Balances Updated");
 	// Calculate profit
 	profitA = currentBalances.usdBalanceA - initUsdBalanceA;
 	profitB = currentBalances.usdBalanceB - initUsdBalanceB;
@@ -1317,8 +1415,7 @@ async function balanceCheck(){
 		}
 	}
 	balancePercentageChange =
-		((currUsdTotalBalance - initUsdTotalBalance) /
-			initUsdTotalBalance) *
+		((currUsdTotalBalance - initUsdTotalBalance) / initUsdTotalBalance) *
 		100;
 	totalProfit = (profitA + profitB).toFixed(2);
 	console.log(
@@ -1327,12 +1424,8 @@ async function balanceCheck(){
 	console.log(
 		`Balance for Token B (${chalk.magenta(selectedTokenB)}): ${chalk.magenta(currBalanceB)}, $${chalk.magenta(currentBalances.usdBalanceB.toFixed(2))}`,
 	);
-	console.log(
-		`${selectedTokenA} profit since start: $${profitA.toFixed(2)}`,
-	);
-	console.log(
-		`${selectedTokenB} profit since start: $${profitB.toFixed(2)}`,
-	);
+	console.log(`${selectedTokenA} profit since start: $${profitA.toFixed(2)}`);
+	console.log(`${selectedTokenB} profit since start: $${profitB.toFixed(2)}`);
 }
 
 process.on("SIGINT", () => {
@@ -1341,7 +1434,7 @@ process.on("SIGINT", () => {
 	shutDown = true;
 
 	(async () => {
-		// Dynamically import ora		
+		// Dynamically import ora
 		const spinner = ora(
 			"Preparing to close Jupgrid - Cancelling Orders",
 		).start();
@@ -1445,8 +1538,4 @@ process.on("SIGINT", () => {
 	})();
 });
 
-export { 
-	connection, 
-	initialize 
-};
-
+export { connection, initialize };
