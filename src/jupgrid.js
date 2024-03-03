@@ -544,7 +544,7 @@ async function initialize() {
 				monitorDelay,
 			);
 			console.clear();
-			console.log("\n\u{1F680} Starting Jupgrid!");
+			console.log(`\n\u{1F680} Starting Jupgrid! Version ${version}`);
 
 			let initialBalances = await getBalance(
 				wallet,

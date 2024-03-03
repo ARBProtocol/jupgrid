@@ -1,4 +1,4 @@
-## Jupgrid: Decentralized Grid Trading Bot Version 0.2.01 Alpha
+## Jupgrid: Decentralized Grid Trading Bot Version 0.3 Alpha
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/ARBProtocol/jupgrid) ![GitHub issues](https://img.shields.io/github/issues/ARBProtocol/jupgrid) ![GitHub number of milestones](https://img.shields.io/github/milestones/all/ARBProtocol/jupgrid) ![GitHub stars](https://img.shields.io/github/stars/ARBProtocol/jupgrid?style=social)
 [![Twitter Follow](https://img.shields.io/twitter/follow/arbprotocol?style=social)](https://twitter.com/arbprotocol)
@@ -46,7 +46,9 @@ This will generate a `.env` file where you will fill in your secure data.
 
 2. **Configuration:** Open the `.env` file in a text editor and input your Phantom wallet Private Key, and the URL to your RPC.
 
-3. **Run Jupgrid:** Start Jupgrid again with `node .` to launch the bot. Upon startup, you will be prompted to enter the following parameters:
+3. **Encryption:** Start Jupgrid with `node .` again. This time you will be prompted to enter a password to locally encrypt your private key and RPC connection.
+
+4. **Start JupGrid!** Start JupGrid a 3rd time with `node .` and this time you will be prompted to enter the password you entered previously. You will then be show the start-up prompts, which allow you to modify the following parameters:
 
     - Token A:
     - Token B:
@@ -65,7 +67,9 @@ The `.env` file will need to contain your Phantom Wallet Private Key and URL to 
 -   `RPC_URL`=YourRPCURLHere
 -   `PRIVATE_KEY`=YourPrivateKeyHere
 
-There will also be a `userSettings.json` file created. This will contain data on the parameters you set during setup.
+Once these are encrypted, they are no longer human-readable. Please ensure you have other copies of this information saved elsewhere.
+
+There will also be `userSettings.json` and `userPriceLayers.json` files created. This will contain data on the parameters you set during setup.
 
 ## Contributing 🤝
 
