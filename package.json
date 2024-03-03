@@ -22,16 +22,29 @@
 			"commonjs": true
 		},
 		"extends": [
-			"eslint:recommended"
+			"prettier",
+			"standard"
 		],
-		"plugins": [
-			"@babel/plugin-syntax-import-assertions"
-		]
+		"rules": {
+			"no-console": "off",
+			"no-tabs": "off",
+			"indent": [
+				"error",
+				"tab"
+			],
+			"quotes": "off",
+			"space-before-function-paren": "off",
+			"semi": [
+				"error",
+				"always"
+			]
+		}
 	},
 	"prettier": {
 		"tabWidth": 4,
 		"useTabs": true,
-		"bracketSpacing": true
+		"bracketSpacing": true,
+		"singleQuote": false
 	},
 	"scripts": {
 		"fmt": "prettier --write .",
@@ -51,6 +64,8 @@
 		"cross-fetch": "^4.0.0",
 		"crypto": "^1.0.1",
 		"dotenv": "^16.4.1",
+		"eslint-config-prettier": "^9.1.0",
+		"eslint-config-standard": "^17.1.0",
 		"express": "^4.18.2",
 		"ora": "^8.0.1",
 		"prompt-sync": "^4.2.0",
