@@ -1,13 +1,13 @@
-import bs58 from 'bs58';
-import dotenv from 'dotenv';
-import fs from 'fs';
-import promptSync from 'prompt-sync';
+import bs58 from "bs58";
+import dotenv from "dotenv";
+import fs from "fs";
+import promptSync from "prompt-sync";
 
-import { Wallet } from '@project-serum/anchor';
-import * as solanaWeb3 from '@solana/web3.js';
+import { Wallet } from "@project-serum/anchor";
+import * as solanaWeb3 from "@solana/web3.js";
 
-import { initialize } from './jupgrid.js';
-import * as utils from './utils.js';
+import { initialize } from "./jupgrid.js";
+import * as utils from "./utils.js";
 
 const prompt = promptSync({ sigint: true });
 
@@ -51,15 +51,15 @@ function envload() {
 				);
 				process.exit(1);
 			}
-			const wallet = new Wallet(
-				solanaWeb3.Keypair.fromSecretKey(
-					bs58.decode(cryptr.decrypt(process.env.PRIVATE_KEY)),
+
+			return [
+				new Wallet(
+					solanaWeb3.Keypair.fromSecretKey(
+						bs58.decode(cryptr.decrypt(process.env.PRIVATE_KEY)),
+					),
 				),
-			);
-			const rpcUrl = process.env.RPC_URL;
-			const l = [wallet, rpcUrl];
-			console.log(l);
-			return l;
+				process.env.RPC_URL,
+			];
 		} else {
 			const pswd = prompt(
 				"Enter a password to encrypt your private key with: ",

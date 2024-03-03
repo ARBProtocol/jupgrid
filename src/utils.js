@@ -1,7 +1,7 @@
-import axios from 'axios';
-import crypto from 'crypto';
-import fs from 'fs';
-import readline from 'readline';
+import axios from "axios";
+import crypto from "crypto";
+import fs from "fs";
+import readline from "readline";
 
 //import { connection } from './jupgrid.js';
 

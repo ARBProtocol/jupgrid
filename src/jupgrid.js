@@ -1,28 +1,21 @@
-import axios from 'axios';
-import chalk from 'chalk';
-import fetch from 'cross-fetch';
-import * as fs from 'fs';
-import ora from 'ora';
+import axios from "axios";
+import chalk from "chalk";
+import fetch from "cross-fetch";
+import * as fs from "fs";
+import ora from "ora";
 
-import {
-  LimitOrderProvider,
-  ownerFilter,
-} from '@jup-ag/limit-order-sdk';
-import * as solanaWeb3 from '@solana/web3.js';
+import { LimitOrderProvider, ownerFilter } from "@jup-ag/limit-order-sdk";
+import * as solanaWeb3 from "@solana/web3.js";
 
-import packageInfo from '../package.json' assert { type: 'json' };
+import packageInfo from "../package.json" assert { type: "json" };
+import { envload, loaduserSettings, saveuserSettings } from "./settings.js";
 import {
-  envload,
-  loaduserSettings,
-  saveuserSettings,
-} from './settings.js';
-import {
-  delay,
-  downloadTokensList,
-  getTokens,
-  questionAsync,
-  rl,
-} from './utils.js';
+	delay,
+	downloadTokensList,
+	getTokens,
+	questionAsync,
+	rl,
+} from "./utils.js";
 
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 
