@@ -3,6 +3,9 @@ node_modules/
 package-lock.json
 pnpm-lock.yaml
 tokens.txt
-userData.json
+userSettings.json
+userPriceLayers.json
 .vscode/
-Jupgrid/Jupgrid.njsproj
+.idea/
+*.json
+!package.json
