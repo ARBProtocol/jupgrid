@@ -99,6 +99,7 @@ let {
 	txFeeBuy = 0,
 	txFeeSell = 0,
 	txFeeCancel = 0,
+	recoveredTransactionsCount = 0,
 	userData = {
 		selectedTokenA: null,
 		selectedTokenB: null,
@@ -112,29 +113,27 @@ let {
 } = {};
 
 async function loadQuestion() {
-	try {
-		await downloadTokensList();
-		console.log("Updated Token List\n");
+    try {
+        await downloadTokensList();
+        console.log("Updated Token List\n");
 
-		if (!fs.existsSync("userData.json")) {
-			console.log("No user data found. Starting with fresh inputs.");
-			initialize();
-		} else {
-			rl.question(
-				"Do you wish to load your saved settings? (Y/N): ",
-				function (responseQ) {
-					responseQ = responseQ.toUpperCase(); // Case insensitivity
+        if (!fs.existsSync("userData.json")) {
+            console.log("No user data found. Starting with fresh inputs.");
+            initialize();
+        } else {
+            const askForLoadSettings = () => {
+                rl.question("Do you wish to load your saved settings? (Y/N): ", function(responseQ) {
+                    responseQ = responseQ.toUpperCase(); // Case insensitivity
 
-					if (responseQ === "Y") {
-						try {
-							// Show user data
-							const userData = loadUserData();
-
-							console.log("User data loaded successfully.");
+                    if (responseQ === "Y") {
+                        try {
+                            // Show user data
+                            const userData = loadUserData();
+                            console.log("User data loaded successfully.");
 							console.log(`Token A: ${userData.selectedTokenA}`);
 							console.log(`Token B: ${userData.selectedTokenB}`);
 							console.log(
-								`Order Size (in ${userData.selectedAddressA}): ${userData.tradeSize}`,
+								`Order Size (in ${userData.selectedTokenA}): ${userData.tradeSize}`,
 							);
 							console.log(`Spread: ${userData.spread}`);
 							console.log(
@@ -153,12 +152,9 @@ async function loadQuestion() {
 							}
 
 							// Prompt for confirmation to use these settings
-							rl.question(
-								"Proceed with these settings? (Y/N): ",
-								function (confirmResponse) {
-									confirmResponse =
-										confirmResponse.toUpperCase();
-									if (confirmResponse === "Y") {
+							rl.question("Proceed with these settings? (Y/N): ", function(confirmResponse) {
+                                confirmResponse = confirmResponse.toUpperCase();
+                                if (confirmResponse === "Y") {
 										// Apply loaded settings
 										({
 											selectedTokenA,
@@ -178,47 +174,34 @@ async function loadQuestion() {
 											"Settings applied successfully!",
 										);
 										initialize();
+									} else if (confirmResponse === "N") {
+										console.log("Discarding saved settings, please continue.");
+										initialize(); // Start initialization with blank settings
 									} else {
-										console.log(
-											"Discarding saved settings, please continue.",
-										);
-										selectedTokenA = null;
-										selectedTokenB = null;
-										tradeSize = null;
-										spread = null;
-										rebalanceAllowed = null;
-										rebalancePercentage = null;
-										rebalanceSlippageBPS = null;
-										initialize();
+										console.log("Invalid response. Please type 'Y' or 'N'.");
+										askForLoadSettings(); // Re-ask the original question
 									}
-								},
-							);
-						} catch (error) {
-							console.error("Failed to load settings:", error);
-							initialize(); // Proceed with initialization in case of error
+								});
+							} catch (error) {
+								console.error("Failed to load settings:", error);
+								initialize(); // Proceed with initialization in case of error
+							}
+						} else if (responseQ === "N") {
+							console.log("Starting with blank settings.");
+							initialize();
+						} else {
+							console.log("Invalid response. Please type 'Y' or 'N'.");
+							askForLoadSettings(); // Re-ask if the response is not Y/N
 						}
-					} else if (responseQ === "N") {
-						console.log("Starting with blank settings.");
-						selectedTokenA = null;
-						selectedTokenB = null;
-						tradeSize = null;
-						spread = null;
-						rebalanceAllowed = null;
-						rebalancePercentage = null;
-						rebalanceSlippageBPS = null; //default slippage
-						initialize();
-					} else {
-						console.log(
-							"Invalid response. Please type 'Y' or 'N'.",
-						);
-					}
-				},
-			);
+					});
+				};
+	
+				askForLoadSettings(); // Start the question loop
+			}
+		} catch (error) {
+			console.error("Error:", error);
 		}
-	} catch (error) {
-		console.error("Error:", error);
 	}
-}
 
 async function initialize() {
 	try {
@@ -555,11 +538,19 @@ async function initialize() {
 			initUsdBalanceB = initialBalances.usdBalanceB;
 			initUsdTotalBalance = initUsdBalanceA + initUsdBalanceB;
 
-			currBalanceA = initialBalances.balanceA;
-			currBalanceB = initialBalances.balanceB;
-			currUSDBalanceA = initialBalances.usdBalanceA;
-			currUSDBalanceB = initialBalances.usdBalanceB;
+			let currentBalances = await getBalance(
+				wallet,
+				selectedAddressA,
+				selectedAddressB,
+				selectedTokenA,
+				selectedTokenB,
+			);
+			currBalanceA = currentBalances.balanceA;
+			currBalanceB = currentBalances.balanceB;
+			currUSDBalanceA = currentBalances.usdBalanceA;
+			currUSDBalanceB = currentBalances.usdBalanceB;
 			currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
+
 			console.log(
 				`${chalk.cyan(selectedTokenA)} Balance: ${chalk.cyan(initBalanceA)}, worth $${chalk.cyan(initUsdBalanceA.toFixed(2))}`,
 				`\n${chalk.magenta(selectedTokenB)} Balance: ${chalk.magenta(initBalanceB)}, worth $${chalk.magenta(initUsdBalanceB.toFixed(2))}`,
@@ -738,28 +729,6 @@ async function monitorPrice(
 
 	while (retries < maxRetries) {
 		try {
-/*
-			const queryParams = {
-				inputMint: selectedAddressA,
-				outputMint: selectedAddressB,
-				amount: tradeSizeInLamports,
-				slippageBps: 0,
-			};
-
-			const response = await axios.get(quoteurl, { params: queryParams });
-			const newPrice = response.data.outAmount;
-			marketPercentageChange =
-				((newPrice - startPrice) / startPrice) * 100;
-			console.log(
-				`\nSell Price : ${sellInput / Math.pow(10, selectedDecimalsB)} ${selectedTokenB} For ${buyInput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA}`,
-			);
-			console.log(
-				`Current Price : ${newPrice / Math.pow(10, selectedDecimalsB)} For ${buyInput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA}`,
-			);
-			console.log(
-				`Buy Price : ${sellOutput / Math.pow(10, selectedDecimalsA)} ${selectedTokenA} For ${buyOutput / Math.pow(10, selectedDecimalsB)} ${selectedTokenB}\n`,
-			);
-*/
 			await updateMainDisplay();
 			await checkOpenOrders();
 
@@ -839,6 +808,26 @@ async function monitorPrice(
 	}
 }
 
+async function updateUSDVal (mintAddress, balance, decimals){
+	const queryParams = {
+		inputMint: mintAddress,
+		outputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+		amount: Math.floor(balance * Math.pow(10, decimals)),
+		slippageBps: 0,
+	};
+
+	try {
+		const response = await axios.get(quoteurl, {
+			params: queryParams,
+		});
+		//Save USD Balance and adjust down for Lamports
+		const usdBalance = response.data.outAmount / Math.pow(10, 6);
+		return usdBalance;
+	} catch (error){
+		//Error is not critical. Reuse the previous balances and try another update again next cycle.
+	}
+};
+
 async function updateMainDisplay(){
 	console.clear();
 	console.log(`Jupgrid v${version}`);
@@ -846,10 +835,18 @@ async function updateMainDisplay(){
 	console.log(`Settings: ${chalk.cyan(selectedTokenA)}/${chalk.magenta(selectedTokenB)} - Spread: ${spread}%`)
 	console.log(`-`);
 
-	if (profitA === null && profitB === null) {		
-		console.log("Please wait for first orders to fill before statistics");
-		currUsdTotalBalance = initUsdTotalBalance;
+    try {
+		// Attempt to fetch the new USD values
+		const tempUSDBalanceA = await updateUSDVal(selectedAddressA, currBalanceA, selectedDecimalsA);
+		const tempUSDBalanceB = await updateUSDVal(selectedAddressB, currBalanceB, selectedDecimalsB);
+		
+		currUSDBalanceA = tempUSDBalanceA ?? currUSDBalanceA; // Fallback to current value if undefined
+		currUSDBalanceB = tempUSDBalanceB ?? currUSDBalanceB; // Fallback to current value if undefined
+		currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB; // Recalculate total
+	} catch (error) {
+		//Error is not critical. Reuse the previous balances and try another update again next cycle.
 	}
+
 	console.log(`Starting Balance : $${initUsdTotalBalance.toFixed(2)}`);
 	console.log(`Current Balance  : $${currUsdTotalBalance.toFixed(2)}`);
 	let profitOrLoss = currUsdTotalBalance - initUsdTotalBalance;
@@ -872,6 +869,7 @@ async function updateMainDisplay(){
 	console.log(`${chalk.magenta(selectedTokenB)} Calculated Change: ${chalk.magenta(profitSumB.toFixed(5))}`);
 	console.log(`Buy Orders Filled: ${buysFilled}`);
 	console.log(`Sell Orders Filled: ${sellsFilled}`);
+	console.log(`Recovered Transactions: ${recoveredTransactionsCount}`);
 	console.log(``);
 };
 
@@ -965,26 +963,26 @@ async function setOrders() {
 		console.error("Error:", error);
 	}
 }
-
+/*
 async function getTxFee(txhash) {	
 	const tx = await connection.getTransaction(txhash, "confirmed");
 	return tx.meta.fee;
 }
-
+*/
 async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
-	if (shutDown) return;	
+    if (shutDown) return;
 
-	// Initialize the spinner
-	const spinner = ora("Sending transaction...").start();
+    const spinner = ora("Sending transaction...").start();
 
-	// Define maximum retries and delay function
-	const maxRetries = 5; // Maximum number of retries
-	const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const maxRetries = 5;
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-	let attempt = 0;
-	while (attempt < maxRetries) {
-		attempt++;
-		try {
+    let attempt = 0;
+    let blockHeightErrorOccurred = false; // This flag resets with each function call
+
+    while (attempt < maxRetries) {
+        attempt++;
+        try {
 			
 			// Make the API call to create the order and get back the transaction details
 			const response = await fetch(
@@ -1035,8 +1033,8 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 				},
 			);
 			
-			let txFee = await getTxFee(txid);
-			console.log(txFee);
+			//let txFee = await getTxFee(txid);
+			//console.log(txFee);
 			
 			spinner.succeed(`Transaction confirmed with ID: ${txid}`);
 			console.log(`https://solscan.io/tx/${txid}`);
@@ -1046,24 +1044,38 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			return {
 				txid: txid,
 				orderPubkey: responseData.orderPubkey,
-			}; // Exit the loop on success
-		} catch (error) {
-			spinner.fail(
-				`Attempt ${attempt} - Error in transaction: ${error.message}`,
-			);
-			console.error(`Attempt ${attempt} - Error:`, error);
+			};
+        } catch (error) {
+            if (blockHeightErrorOccurred && error.message.toLowerCase().includes("already in use")) {
+                // Increment the global counter for recovered transactions
+                recoveredTransactionsCount += 1;
+                
+                // Log or handle the recovered transaction
+                spinner.info(`Transaction assumed successful after recovery. Total recovered: ${recoveredTransactionsCount}`);
 
-			if (attempt < maxRetries) {
-				console.log(`Retrying... Attempt ${attempt + 1}`);
-				await delay(1000 * attempt); // Exponential backoff
-			} else {
-				console.error(
-					"Maximum number of retries reached. Transaction failed.",
-				);
-				return null; // Exit the function after max retries
-			}
-		}
-	}
+                // Reset the block height error flag for the next use of the function
+                blockHeightErrorOccurred = false;
+
+                // Return as if successful
+                return {
+                    txid: txid,
+                    orderPubkey: responseData.orderPubkey,
+                    wasRecovered: true
+                };
+            } else if (error.message.toLowerCase().includes("block height exceeded")) {
+                spinner.fail(`Attempt ${attempt} - Block height exceeded error: ${error.message}`);
+                blockHeightErrorOccurred = true;
+                await delay(2000);
+            } else {
+                // Handle all other errors
+                spinner.fail(`Attempt ${attempt} - Error in transaction: ${error.message}`);
+                await delay(2000);
+            }
+        }
+    }
+	//If we get here, its proper broken...
+    blockHeightErrorOccurred = false;
+    throw new Error("Transaction failed after maximum attempts.");
 }
 
 async function rebalanceTokens(
