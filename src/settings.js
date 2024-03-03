@@ -40,8 +40,8 @@ function envload() {
 	}
 	try {
 		if (process.env.FLAG) {
-			const password = prompt(
-				"Enter your password to decrypt your private key: "
+			const password = prompt.hide(
+				"Enter your password to decrypt your private key (input hidden): "
 			);
 			const cryptr = new utils.Encrypter(password);
 			const decdflag = cryptr.decrypt(process.env.FLAG);
@@ -61,8 +61,8 @@ function envload() {
 				process.env.RPC_URL
 			];
 		} else {
-			const pswd = prompt(
-				"Enter a password to encrypt your private key with: "
+			const pswd = prompt.hide(
+				"Enter a password to encrypt your private key with (input hidden): "
 			);
 			const cryptr = new utils.Encrypter(pswd);
 			const encryptedKey = cryptr.encrypt(process.env.PRIVATE_KEY, pswd);
