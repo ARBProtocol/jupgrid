@@ -98,6 +98,8 @@ let {
 	txFeeSell = 0,
 	txFeeCancel = 0,
 	recoveredTransactionsCount = 0,
+	lastFilledOrder = null, // 'buy' or 'sell'
+	sortedLayers,
 	userSettings = {
 		selectedTokenA: null,
 		selectedTokenB: null,
@@ -517,12 +519,20 @@ async function initialize() {
 
 			newPrice = response.data.outAmount;
 			startPrice = response.data.outAmount;
+			const layers = generatePriceLayers(startPrice, spreadbps, 20)
 			//Calc first price layers
 			buyInput = tradeSizeInLamports;
+
+			sellInput = layers[-1];
+			buyOutput = layers[1];
+
+			/*
 			//Get Lamports for Buy Output
 			sellInput = Math.trunc(newPrice * (1 - spreadbps / 10000));
 			//Get Lamports for Sell Input
 			buyOutput = Math.trunc(newPrice * (1 + spreadbps / 10000));
+			*/
+
 			//Get Lamports for Sell Output
 			sellOutput = tradeSizeInLamports;
 
@@ -587,6 +597,33 @@ async function initialize() {
 
 if (loaded === false) {
 	loadQuestion();
+}
+
+function generatePriceLayers(newPrice, spreadbps, totalLayers) {
+    const layers = {};
+    const adjustment = Number(newPrice) * spreadbps / 10000;
+
+    for (let i = 1; i <= totalLayers; i++) {
+        layers[i] = Math.trunc(Number(newPrice) + adjustment * i);
+        layers[-i] = Math.trunc(Number(newPrice) - adjustment * i);
+    }
+    layers[0] = Number(newPrice);
+
+    // Convert the layers object to an array of [key, value] pairs
+    const layersArray = Object.entries(layers);
+
+    // Sort the array in descending order by key (layer number)
+    layersArray.sort((a, b) => Number(b[0]) - Number(a[0]));
+
+    // Convert the sorted array back to an object
+    const localSortedLayers = Object.fromEntries(layersArray);
+
+    fs.writeFileSync('userPriceLayers.json', JSON.stringify(localSortedLayers, null, 2), 'utf8');
+
+    // Assign localSortedLayers to the global variable
+    sortedLayers = localSortedLayers;
+
+    return localSortedLayers;
 }
 
 async function getBalance(
@@ -744,10 +781,9 @@ async function monitorPrice(
 ) {
 	if (shutDown) return;
 	let retries = 0;
-
+	await updateMainDisplay();
 	while (retries < maxRetries) {
 		try {
-			await updateMainDisplay();
 			await checkOpenOrders();
 
 			if (checkArray.length !== 2) {
@@ -775,11 +811,13 @@ async function monitorPrice(
 				} else if (checkArray.length === 1) {
 					// Identify which key(s) are missing
 					if (!checkArray.includes(buyKey)) {
+						lastFilledOrder = "buy";
 						missingKeys.push("Buy Key");
 					} else {
 						remainingKeys.push("Buy Key"); // Buy Key is not missing, so it's remaining
 					}
 					if (!checkArray.includes(sellKey)) {
+						lastFilledOrder = "sell";
 						missingKeys.push("Sell Key");
 					} else {
 						remainingKeys.push("Sell Key"); // Sell Key is not missing, so it's remaining
@@ -829,8 +867,7 @@ async function monitorPrice(
 					);
 					await recalculateLayers(
 						tradeSizeInLamports,
-						spreadbps,
-						newPrice,
+						sortedLayers
 					);
 				} else if (checkArray.length > 2) {
 					console.log(
@@ -838,13 +875,13 @@ async function monitorPrice(
 					);
 					await recalculateLayers(
 						tradeSizeInLamports,
-						spreadbps,
-						newPrice,
+						sortedLayers
 					);
 					// Here, you'd identify which orders are valid, potentially adjusting remainingKeys accordingly
 				}
 			} else {
 				console.log("2 open orders. Waiting for change.");
+				console.log(sortedLayers);
 				await delay(monitorDelay);
 				return monitorPrice(
 					selectedAddressA,
@@ -856,6 +893,7 @@ async function monitorPrice(
 
 			break; // Break the loop if we've successfully handled the price monitoring
 		} catch (error) {
+			console.log(error)
 			console.error(
 				`Error: Connection or Token Data Error (Monitor Price) - (Attempt ${retries + 1} of ${maxRetries})`,
 			);
@@ -957,7 +995,7 @@ async function updateMainDisplay() {
 	console.log(`Recovered Transactions: ${recoveredTransactionsCount}`);
 	console.log(``);
 }
-
+/*
 async function recalculateLayers(tradeSizeInLamports, spreadbps, newPrice) {
 	// Recalculate layers based on the new price
 	console.log("\u{1F504} Calculating new price layers");
@@ -971,6 +1009,35 @@ async function recalculateLayers(tradeSizeInLamports, spreadbps, newPrice) {
 
 	await cancelOrder(checkArray, wallet);
 	recalcs++;
+}
+*/
+async function recalculateLayers(tradeSizeInLamports, layers) {
+    console.log("\u{1F504} Calculating new price layers");
+    buyInput = tradeSizeInLamports;
+    sellOutput = tradeSizeInLamports;
+
+    let currentBuyLayer = Object.keys(layers).find(key => layers[key] === sellInput);
+    let currentSellLayer = Object.keys(layers).find(key => layers[key] === buyOutput);
+
+    if (lastFilledOrder === 'buy') {
+        // Price went down, move both orders down
+        currentBuyLayer = Number(currentBuyLayer) - 1;
+        currentSellLayer = Number(currentSellLayer) - 1;
+        console.log(`Last filled order was a buy. Moving down to layer ${currentBuyLayer} for buy order and layer ${currentSellLayer} for sell order.`);
+    } else if (lastFilledOrder === 'sell') {
+        // Price went up, move both orders up
+        currentBuyLayer = Number(currentBuyLayer) + 1;
+        currentSellLayer = Number(currentSellLayer) + 1;
+        console.log(`Last filled order was a sell. Moving up to layer ${currentBuyLayer} for buy order and layer ${currentSellLayer} for sell order.`);
+    } else {
+        console.log(`No order has been filled yet. Setting buy order to layer ${currentBuyLayer} and sell order to layer ${currentSellLayer}.`);
+    }
+
+    sellInput = layers[currentBuyLayer];
+    buyOutput = layers[currentSellLayer];
+
+    await cancelOrder(checkArray, wallet);
+    recalcs++;
 }
 
 async function sendTransactionAsync(
@@ -1133,24 +1200,18 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 		} catch (error) {
 			if (
 				blockHeightErrorOccurred &&
-				error.message.toLowerCase().includes("already in use")
+				error.message.toLowerCase().includes("0x0")
 			) {
 				// Increment the global counter for recovered transactions
-				recoveredTransactionsCount += 1;
-
-				// Log or handle the recovered transaction
-				spinner.info(
-					`Transaction assumed successful after recovery. Total recovered: ${recoveredTransactionsCount}`,
-				);
-
+				recoveredTransactionsCount++;
+				spinner.succeed(`Transaction confirmed, no TXID available.`);
 				// Reset the block height error flag for the next use of the function
 				blockHeightErrorOccurred = false;
 
 				// Return as if successful
 				return {
-					txid: txid,
+					//txid: txid,
 					orderPubkey: responseData.orderPubkey,
-					wasRecovered: true,
 				};
 			} else if (
 				error.message.toLowerCase().includes("block height exceeded")
@@ -1281,7 +1342,7 @@ async function cancelOrder(checkArray) {
 				return; // Exit if no orders need cancelling
 			}
 
-			spinner.text = "Please Wait";
+			spinner.text = "Cancelling Orders, Please Wait";
 
 			const requestData = {
 				owner: wallet.publicKey.toString(),

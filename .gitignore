@@ -4,5 +4,7 @@ package-lock.json
 pnpm-lock.yaml
 tokens.txt
 userSettings.json
+userPriceLayers.json
 .vscode/
 .idea/
+userPriceLayers.json
