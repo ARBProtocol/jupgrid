@@ -7,4 +7,5 @@ userSettings.json
 userPriceLayers.json
 .vscode/
 .idea/
-userPriceLayers.json
+*.json
+!package.json

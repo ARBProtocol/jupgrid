@@ -519,19 +519,12 @@ async function initialize() {
 
 			newPrice = response.data.outAmount;
 			startPrice = response.data.outAmount;
-			const layers = generatePriceLayers(startPrice, spreadbps, 20)
+			const layers = generatePriceLayers(startPrice, spreadbps, 50)
 			//Calc first price layers
 			buyInput = tradeSizeInLamports;
 
-			sellInput = layers[-1];
-			buyOutput = layers[1];
-
-			/*
-			//Get Lamports for Buy Output
-			sellInput = Math.trunc(newPrice * (1 - spreadbps / 10000));
-			//Get Lamports for Sell Input
-			buyOutput = Math.trunc(newPrice * (1 + spreadbps / 10000));
-			*/
+			sellInput = layers[1];
+			buyOutput = layers[-1];
 
 			//Get Lamports for Sell Output
 			sellOutput = tradeSizeInLamports;
@@ -601,11 +594,19 @@ if (loaded === false) {
 
 function generatePriceLayers(newPrice, spreadbps, totalLayers) {
     const layers = {};
-    const adjustment = Number(newPrice) * spreadbps / 10000;
+    const adjustment = newPrice * spreadbps / 10000; // Fixed adjustment value
 
     for (let i = 1; i <= totalLayers; i++) {
-        layers[i] = Math.trunc(Number(newPrice) + adjustment * i);
-        layers[-i] = Math.trunc(Number(newPrice) - adjustment * i);
+        const upperLayerPrice = Math.trunc(Number(newPrice) - adjustment * i);
+        const lowerLayerPrice = Math.trunc(Number(newPrice) + adjustment * i);
+
+        // Only add the layer if the price is not negative
+        if (upperLayerPrice >= 0) {
+            layers[i] = upperLayerPrice;
+        }
+        if (lowerLayerPrice >= 0) {
+            layers[-i] = lowerLayerPrice;
+        }
     }
     layers[0] = Number(newPrice);
 
@@ -995,22 +996,7 @@ async function updateMainDisplay() {
 	console.log(`Recovered Transactions: ${recoveredTransactionsCount}`);
 	console.log(``);
 }
-/*
-async function recalculateLayers(tradeSizeInLamports, spreadbps, newPrice) {
-	// Recalculate layers based on the new price
-	console.log("\u{1F504} Calculating new price layers");
-	buyInput = tradeSizeInLamports;
-	//Get Lamports for Buy Output
-	sellInput = Math.trunc(newPrice * (1 - spreadbps / 10000));
-	//Get Lamports for Sell Input
-	buyOutput = Math.trunc(newPrice * (1 + spreadbps / 10000));
-	//Get Lamports for Sell Output
-	sellOutput = tradeSizeInLamports;
 
-	await cancelOrder(checkArray, wallet);
-	recalcs++;
-}
-*/
 async function recalculateLayers(tradeSizeInLamports, layers) {
     console.log("\u{1F504} Calculating new price layers");
     buyInput = tradeSizeInLamports;
