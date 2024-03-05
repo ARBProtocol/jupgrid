@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import readline from 'readline';
 
+import solanaWeb3 from '@solana/web3.js';
+
 function delay(ms) {
 	return new Promise((resolve) => {
 		setTimeout(resolve, ms);
@@ -69,4 +71,21 @@ class Encrypter {
 	}
 }
 
-export { delay, downloadTokensList, Encrypter, getTokens, questionAsync, rl };
+async function getTokenAccounts(connection, address, tokenMintAddress) {
+	return await connection.getParsedTokenAccountsByOwner(
+		address,
+		{
+			mint: new solanaWeb3.PublicKey(tokenMintAddress)
+		}
+	);
+}
+
+export {
+	delay,
+	downloadTokensList,
+	Encrypter,
+	getTokenAccounts,
+	getTokens,
+	questionAsync,
+	rl
+};

@@ -1,21 +1,29 @@
-import axios from "axios";
-import chalk from "chalk";
-import fetch from "cross-fetch";
-import * as fs from "fs";
-import ora from "ora";
+import axios from 'axios';
+import chalk from 'chalk';
+import fetch from 'cross-fetch';
+import * as fs from 'fs';
+import ora from 'ora';
 
-import { LimitOrderProvider, ownerFilter } from "@jup-ag/limit-order-sdk";
-import * as solanaWeb3 from "@solana/web3.js";
+import {
+	LimitOrderProvider,
+	ownerFilter
+} from '@jup-ag/limit-order-sdk';
+import * as solanaWeb3 from '@solana/web3.js';
 
-import packageInfo from "../package.json" assert { type: "json" };
-import { envload, loaduserSettings, saveuserSettings } from "./settings.js";
+import packageInfo from '../package.json' assert { type: 'json' };
+import {
+	envload,
+	loaduserSettings,
+	saveuserSettings
+} from './settings.js';
 import {
 	delay,
 	downloadTokensList,
+	getTokenAccounts,
 	getTokens,
 	questionAsync,
-	rl,
-} from "./utils.js";
+	rl
+} from './utils.js';
 
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 
@@ -519,7 +527,7 @@ async function initialize() {
 
 			newPrice = response.data.outAmount;
 			startPrice = response.data.outAmount;
-			const layers = generatePriceLayers(startPrice, spreadbps, 50)
+			const layers = generatePriceLayers(startPrice, spreadbps, 500)
 			//Calc first price layers
 			buyInput = tradeSizeInLamports;
 
@@ -674,13 +682,11 @@ async function getBalance(
 			return getSOLBalanceAndUSDC();
 		}
 
-		const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+		const tokenAccounts = await getTokenAccounts(
+			connection,
 			wallet.publicKey,
-			{
-				mint: new solanaWeb3.PublicKey(mintAddress),
-			},
+			mintAddress,
 		);
-
 		if (tokenAccounts.value.length > 0) {
 			const balance =
 				tokenAccounts.value[0].account.data.parsed.info.tokenAmount
@@ -992,8 +998,7 @@ async function updateMainDisplay() {
 	);
 	console.log(`Buy Orders Filled: ${buysFilled}`);
 	console.log(`Sell Orders Filled: ${sellsFilled}`);
-	console.log(`Recovered Transactions: ${recoveredTransactionsCount}`);
-	console.log(``);
+	console.log(`Recovered Transactions: ${recoveredTransactionsCount}\n`);
 }
 
 async function recalculateLayers(tradeSizeInLamports, layers) {
@@ -1115,11 +1120,14 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 	const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 	let attempt = 0;
+	
 	let blockHeightErrorOccurred = false; // This flag resets with each function call
 
 	while (attempt < maxRetries) {
 		attempt++;
 		try {
+			let PRIORITY_RATE = 100 * attempt;
+			let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
 			// Make the API call to create the order and get back the transaction details
 			const response = await fetch(
 				"https://jup.ag/api/limit/v1/createOrder",
@@ -1156,7 +1164,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 				await connection.getLatestBlockhash("processed");
 			transaction.recentBlockhash = blockhash;
 			transaction.feePayer = wallet.publicKey;
-
+			transaction.add(PRIORITY_FEE_IX);
 			const signers = [wallet.payer, base];
 
 			// Send and confirm the transaction
@@ -1312,6 +1320,8 @@ async function cancelOrder(checkArray) {
 
 	while (attempt <= maxRetries) {
 		try {
+			let PRIORITY_RATE = 100 * attempt;
+			let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
 			openOrders.length = 0;
 			checkArray.length = 0;
 
@@ -1354,6 +1364,7 @@ async function cancelOrder(checkArray) {
 			const transactionBase64 = responseData.tx;
 			const transactionBuf = Buffer.from(transactionBase64, "base64");
 			const transaction = solanaWeb3.Transaction.from(transactionBuf);
+			transaction.add(PRIORITY_FEE_IX);
 			const { blockhash } = await connection.getLatestBlockhash();
 			transaction.recentBlockhash = blockhash;
 			const signers = [wallet.payer];
@@ -1486,10 +1497,10 @@ process.on("SIGINT", () => {
 		).start();
 
 		// Retry parameters
+		
 		const maxRetries = 30; // Maximum number of retries
 		const cpause = (ms) =>
 			new Promise((resolve) => setTimeout(resolve, ms));
-
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			openOrders.length = 0;
 			checkArray.length = 0;
@@ -1507,7 +1518,8 @@ process.on("SIGINT", () => {
 				try {
 					// Update spinner text instead of using console.log
 					spinner.text = "Please Wait";
-
+					let PRIORITY_RATE = 100 * attempt;
+					let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
 					const requestData = {
 						owner: wallet.publicKey.toString(),
 						feePayer: wallet.publicKey.toString(),
@@ -1540,7 +1552,7 @@ process.on("SIGINT", () => {
 					const transaction =
 						solanaWeb3.Transaction.from(transactionBuf);
 					const signers = [wallet.payer];
-
+						transaction.add(PRIORITY_FEE_IX);
 					const txid = await solanaWeb3.sendAndConfirmTransaction(
 						connection,
 						transaction,

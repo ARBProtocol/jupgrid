@@ -38,31 +38,37 @@ function envload() {
 		);
 		process.exit(1);
 	}
-	try {
+	while (1) {
 		if (process.env.FLAG) {
-			const password = prompt(
-				"Enter your password to decrypt your private key: "
-			);
-			const cryptr = new utils.Encrypter(password);
-			const decdflag = cryptr.decrypt(process.env.FLAG);
-			if (decdflag !== encflag) {
+			try {
+				const password = prompt.hide(
+					"Enter your password to decrypt your private key (input hidden): "
+				);
+				const cryptr = new utils.Encrypter(password);
+				const decdflag = cryptr.decrypt(process.env.FLAG);
+				if (decdflag !== encflag) {
+					console.error(
+						"Invalid password. Please ensure you are using the correct password."
+					);
+					continue;
+				}
+				return [
+					new Wallet(
+						solanaWeb3.Keypair.fromSecretKey(
+							bs58.decode(cryptr.decrypt(process.env.PRIVATE_KEY))
+						)
+					),
+					process.env.RPC_URL
+				];
+			} catch (error) {
 				console.error(
 					"Invalid password. Please ensure you are using the correct password."
 				);
-				process.exit(1);
+				continue;
 			}
-
-			return [
-				new Wallet(
-					solanaWeb3.Keypair.fromSecretKey(
-						bs58.decode(cryptr.decrypt(process.env.PRIVATE_KEY))
-					)
-				),
-				process.env.RPC_URL
-			];
 		} else {
-			const pswd = prompt(
-				"Enter a password to encrypt your private key with: "
+			const pswd = prompt.hide(
+				"Enter a password to encrypt your private key with (input hidden): "
 			);
 			const cryptr = new utils.Encrypter(pswd);
 			const encryptedKey = cryptr.encrypt(process.env.PRIVATE_KEY, pswd);
@@ -77,10 +83,7 @@ function envload() {
 			);
 			process.exit(0);
 		}
-	} catch (error) {
-		console.error("An error occurred during crypting: ", error);
-		return [null, null];
-	}
+	} // end while
 }
 
 function saveuserSettings(
