@@ -999,8 +999,7 @@ async function updateMainDisplay() {
 	);
 	console.log(`Buy Orders Filled: ${buysFilled}`);
 	console.log(`Sell Orders Filled: ${sellsFilled}`);
-	console.log(`Recovered Transactions: ${recoveredTransactionsCount}`);
-	console.log(``);
+	console.log(`Recovered Transactions: ${recoveredTransactionsCount}\n`);
 }
 
 async function recalculateLayers(tradeSizeInLamports, layers) {
