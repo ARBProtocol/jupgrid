@@ -38,7 +38,7 @@ function envload() {
 		);
 		process.exit(1);
 	}
-	try {
+	while (1) {
 		if (process.env.FLAG) {
 			const password = prompt.hide(
 				"Enter your password to decrypt your private key (input hidden): "
@@ -49,7 +49,7 @@ function envload() {
 				console.error(
 					"Invalid password. Please ensure you are using the correct password."
 				);
-				process.exit(1);
+				continue;
 			}
 
 			return [
@@ -77,10 +77,7 @@ function envload() {
 			);
 			process.exit(0);
 		}
-	} catch (error) {
-		console.error("An error occurred during crypting: ", error);
-		return [null, null];
-	}
+	} // end while
 }
 
 function saveuserSettings(
