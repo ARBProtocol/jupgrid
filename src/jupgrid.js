@@ -931,7 +931,8 @@ async function updateUSDVal(mintAddress, balance, decimals) {
 		const usdBalance = response.data.outAmount / Math.pow(10, 6);
 		return usdBalance;
 	} catch (error) {
-		//Error is not critical. Reuse the previous balances and try another update again next cycle.
+		// Error is not critical. 
+		// Reuse the previous balances and try another update again next cycle.
 	}
 }
 

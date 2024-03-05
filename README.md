@@ -1,4 +1,4 @@
-## Jupgrid: Decentralized Grid Trading Bot Version 0.3 Alpha
+## Jupgrid: Decentralized Grid Trading Bot Version 0.3.1 Alpha
 =======
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/ARBProtocol/jupgrid) ![GitHub issues](https://img.shields.io/github/issues/ARBProtocol/jupgrid) ![GitHub number of milestones](https://img.shields.io/github/milestones/all/ARBProtocol/jupgrid) ![GitHub stars](https://img.shields.io/github/stars/ARBProtocol/jupgrid?style=social)
