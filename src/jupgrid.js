@@ -888,7 +888,6 @@ async function monitorPrice(
 				}
 			} else {
 				console.log("2 open orders. Waiting for change.");
-				//console.log(sortedLayers);
 				await delay(monitorDelay);
 				return monitorPrice(
 					selectedAddressA,
