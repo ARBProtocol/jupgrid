@@ -98,7 +98,9 @@ function saveuserSettings(
 	rebalanceAllowed,
 	rebalancePercentage,
 	rebalanceSlippageBPS,
-	monitorDelay
+	monitorDelay,
+	stopLossUSD,
+	infinityTarget,
 ) {
 	try {
 		fs.writeFileSync(
@@ -116,7 +118,9 @@ function saveuserSettings(
 					rebalanceAllowed,
 					rebalancePercentage,
 					rebalanceSlippageBPS,
-					monitorDelay
+					monitorDelay,
+					stopLossUSD,
+					infinityTarget,
 				},
 				null,
 				4
