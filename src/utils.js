@@ -80,7 +80,23 @@ async function getTokenAccounts(connection, address, tokenMintAddress) {
 	);
 }
 
+async function arbGate(connection, address) {
+	const ata = await getTokenAccounts(connection, address, "9tzZzEHsKnwFL1A3DyFJwj36KnZj3gZ7g4srWp9YTEoh");
+	if (ata.value.length === 0) {
+		console.error(`You do not have any ARB token accounts! Please hold at least 30k ARB to run this bot.`);
+		process.exit(0);
+	}
+	const balget = await connection.getTokenAccountBalance(ata.value[0].pubkey);
+	const amt = balget.value.amount / 1e6;
+	if (amt < 25e3) {
+		console.error(`You do not have enough ARB to run this bot! Please hold at least 25k ARB in your wallet(${address}) run this bot. You currently have: ${amt} ARB.`);
+		process.exit(0);
+	}
+	console.log(`You have enough ARB to run this bot! You have: ${amt} ARB. Welcome to JupGrid!`);
+}
+
 export {
+	arbGate,
 	delay,
 	downloadTokensList,
 	Encrypter,

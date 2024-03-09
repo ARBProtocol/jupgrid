@@ -17,6 +17,7 @@ import {
 	saveuserSettings
 } from './settings.js';
 import {
+	arbGate,
 	delay,
 	downloadTokensList,
 	getTokenAccounts,
@@ -661,6 +662,7 @@ async function initialize() {
 }
 
 if (loaded === false) {
+	await arbGate(connection, wallet.publicKey);
 	loadQuestion();
 }
 
