@@ -112,6 +112,9 @@ let {
 	recoveredTransactionsCount = 0,
 	lastFilledOrder = null, // 'buy' or 'sell'
 	sortedLayers,
+	infinityMode = false,
+	adjustmentA = 0,
+	adjustmentB = 0,
 	userSettings = {
 		selectedTokenA: null,
 		selectedTokenB: null,
@@ -460,7 +463,7 @@ async function initialize() {
 		const infinityModeInput = await questionAsync(
 			`Would you like Infinity Mode? (Y/N): `,
 		);
-		const infinityMode = infinityModeInput.toLowerCase() === 'y';
+		infinityMode = infinityModeInput.toLowerCase() === 'y';
 
 		if (infinityMode) {
 			if (userSettings.infinityTarget) {
@@ -633,9 +636,20 @@ async function initialize() {
 			console.clear();
 			console.log(`\n\u{1F680} Starting Jupgrid! Version ${version}`);
 
-			//if (!infinity) {
+			if (!infinityMode) {
+				console.log("Starting Grid Mode");
 			startGrid();
-			//}
+			} else {
+
+				console.log("Infinity Mode is currently disabled. Please check back later.")
+				process.exit(0);
+
+				//DO NOT ENABLE INFINITY MODE UNTIL FULLY TESTED - THANK YOU.
+
+				//console.log("Starting Infinity Mode");
+				//startInfinity();
+			}
+
 		} catch (error) {
 			console.error("Error: Connection or Token Data Error");
 			console.error("Error:", error);
@@ -684,6 +698,13 @@ async function startGrid () {
 	);
 	setOrders(tradeSizeInLamports);
 }
+
+async function startInfinity() {
+	//Balance check and rebalance to start
+	await balanceCheck();
+	infinityGrid();
+}
+
 function generatePriceLayers(newPrice, spreadbps, totalLayers) {
     const layers = {};
     const adjustment = newPrice * spreadbps / 10000; // Fixed adjustment value
@@ -865,22 +886,60 @@ function formatElapsedTime(startTime) {
 }
 
 async function infinityGrid() {
-	//get balances for A and B
-		//initBalanceA = initialBalances.balanceA;
-		//initUsdBalanceA = initialBalances.usdBalanceA;
-		//initBalanceB = initialBalances.balanceB;
-		//initUsdBalanceB = initialBalances.usdBalanceB;
-		//initUsdTotalBalance = initUsdBalanceA + initUsdBalanceB;
-
+	
 	//StopLoss trip if A+B < stopLossUSD
 		//stopLoss = true if currUsdTotalBalance < stopLossUSD
 
-	//balance B to infinityTarget
+	
 		
+	let currentBalances = await getBalance(wallet, selectedAddressA, selectedAddressB, selectedTokenA, selectedTokenB);
+	currBalanceA = currentBalances.balanceA;
+	currBalanceB = currentBalances.balanceB;
+	currUSDBalanceA = currentBalances.usdBalanceA;
+	currUSDBalanceB = currentBalances.usdBalanceB;
+	currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
+	let tokenBPrice = currUSDBalanceB / currBalanceB;
+	let tokenAPrice = currUSDBalanceA / currBalanceA;
 
-	//Place swap orders for B to A at +1%
-	//Place swap orders for A to B at -1%
+// Calculate the exchange rate
+let exchangeRate = tokenBPrice / tokenAPrice;
+
+// Place sell order for B to A when tokenB is up 1%
+{
+    // Calculate the new price of tokenB when it's up 1%
+    let newPriceBUp = tokenBPrice * 1.01;
+
+    // Calculate the amount of tokenB to sell to maintain the target USD value
+    let sellAmountTokenB = (currBalanceB * newPriceBUp - infinityTarget) / newPriceBUp;
+    let sellAmountLamportsB = sellAmountTokenB * Math.pow(10, selectedDecimalsB);
+
+    // Calculate the expected receive amount of tokenA
+    let expectedReceiveAmountTokenA = sellAmountTokenB * exchangeRate;
+    let expectedReceiveAmountLamportsA = expectedReceiveAmountTokenA * Math.pow(10, selectedDecimalsA);
+
+    // Place the sell order
+    await sendTransactionAsync(sellAmountLamportsB, expectedReceiveAmountLamportsA, selectedAddressB, selectedAddressA, 1000);
 }
+
+// Place buy order for B when tokenB is down 1%
+{
+    // Calculate the new price of tokenB when it's down 1%
+    let newPriceBDown = tokenBPrice * 0.99;
+
+    // Calculate the amount of tokenB to buy to maintain the target USD value
+    let buyAmountTokenB = (infinityTarget - currBalanceB * newPriceBDown) / newPriceBDown;
+    let buyAmountLamportsB = buyAmountTokenB * Math.pow(10, selectedDecimalsB);
+
+    // Calculate the sell amount of tokenA needed to buy tokenB
+    let sellAmountTokenA = buyAmountTokenB * newPriceBDown;
+    let sellAmountLamportsA = sellAmountTokenA * Math.pow(10, selectedDecimalsA);
+
+    // Place the buy order
+    await sendTransactionAsync(sellAmountLamportsA, buyAmountLamportsB, selectedAddressA, selectedAddressB, 1000);
+}
+	
+}
+
 
 async function monitorPrice(
 	selectedAddressA,
@@ -1245,8 +1304,8 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 						outputMint: outputMint.toString(),
 						expiredAt: null,
 						base: base.publicKey.toString(),
-						referralAccount: "G8gef1wGWKTpohCEznP6T2Hi6PXWs6cet8F6ouHYMj3B",
-						referralName: "JupiGrid",
+						referralAccount: "7WGULgEo4Veqj6sCvA3VNxGgBf3EXJd8sW2XniBda3bJ",
+						referralName: "Jupiter Gridbot",
 					}),
 				},
 			);
@@ -1322,7 +1381,8 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			} else {
 				// Handle all other errors
 				spinner.fail(
-					`Attempt ${attempt} - Error in transaction: ${error.message}`,
+					//`Attempt ${attempt} - Error in transaction: ${error.message}`,
+					spinner.fail(`Attempt ${attempt} - Error in transaction: ${error.message}, Full error: ${JSON.stringify(error, null, 2)}`),
 				);
 				await delay(2000);
 			}
@@ -1536,52 +1596,67 @@ async function balanceCheck() {
 
 	
 	//Rebalancing allowed check
-	if (
-		rebalanceAllowed &&
-		(percentageOfA < rebalancePercentage ||
-			percentageOfB < rebalancePercentage)
-	) {
-		let targetUsdBalancePerToken = currUsdTotalBalance / 2;
-
-		if (userSettings.infinityMode) {
-			if (currUsdTotalBalance > userSettings.infinityTarget) {
-				targetUsdBalancePerToken = userSettings.infinityTarget;
-			} else {
+	if ( rebalanceAllowed && (percentageOfA < rebalancePercentage || percentageOfB < rebalancePercentage) || infinityMode ) {
+		if (infinityMode) {
+			if (!currUsdTotalBalance > infinityTarget) {
 				console.log(`Your total balance is not high enough for your Infinity Target. Please either increase your wallet balance or reduce your target.`);
 				process.exit(0); // Exit program
 			}
+			let targetUsdBalancePerToken = infinityTarget;
+			if (currUSDBalanceB < targetUsdBalancePerToken) {
+				// Calculate how much more of TokenB we need to reach the target
+				let deficit = (targetUsdBalancePerToken - currUSDBalanceB) * Math.pow(10, selectedDecimalsA);
+			
+				// Calculate how much of TokenA we need to sell to buy the deficit amount of TokenB
+				adjustmentA = -1 * deficit / tokenARebalanceValue;
+			} else if (currUSDBalanceB > targetUsdBalancePerToken) {
+				// Calculate how much we have exceeded the target
+				let surplus = (currUSDBalanceB - targetUsdBalancePerToken) * Math.pow(10, selectedDecimalsB);
+			
+				// Calculate how much of TokenB we need to sell to get rid of the surplus
+				adjustmentB = -1 * (surplus / tokenBRebalanceValue);
+			}
+			//adjustmentA = currBalanceA - targetUsdBalancePerToken;
+			//adjustmentB = targetUsdBalancePerToken - currBalanceB;
+			rebalanceSlippageBPS = 100;
+			console.log("Infinity Mode Enabled");
+		} else {
+			let targetUsdBalancePerToken = currUsdTotalBalance / 2;
+		adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
+		adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
 		}
 
-		let adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
-		let adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
-
+		//console.log(adjustmentA / Math.pow(10, selectedDecimalsA))
+		//console.log(adjustmentB / Math.pow(10, selectedDecimalsB))		
 		if (adjustmentA < 0) {
 			// Token A's USD balance is above the target, calculate how much Token A to sell
-			let rebalanceValue =
-				(Math.abs(adjustmentA) / tokenARebalanceValue) *
-				Math.pow(10, selectedDecimalsA);
+			let rebalanceValue = adjustmentA;
+			if (!infinityMode) {
+				rebalanceValue = (Math.abs(adjustmentA) / Math.abs(tokenARebalanceValue)) * Math.pow(10, selectedDecimalsA);
+			}
 			console.log(
 				`Need to sell ${chalk.cyan(rebalanceValue / Math.pow(10, selectedDecimalsA))} ${chalk.cyan(selectedTokenA)} to balance.`,
 			);
 			await rebalanceTokens(
 				selectedAddressA,
 				selectedAddressB,
-				rebalanceValue,
+				Math.abs(rebalanceValue),
 				rebalanceSlippageBPS,
 				quoteurl,
 			);
 		} else if (adjustmentB < 0) {
 			// Token B's USD balance is above the target, calculate how much Token B to sell
-			let rebalanceValue =
-				(Math.abs(adjustmentB) / tokenBRebalanceValue) *
-				Math.pow(10, selectedDecimalsB);
+			let rebalanceValue = adjustmentB;
+			if (!infinityMode) {
+				rebalanceValue = (Math.abs(adjustmentB) / Math.abs(tokenBRebalanceValue)) * Math.pow(10, selectedDecimalsB);Can 
+			}
 			console.log(
 				`Need to sell ${chalk.magenta(rebalanceValue / Math.pow(10, selectedDecimalsB))} ${chalk.magenta(selectedTokenB)} to balance.`,
 			);
 			await rebalanceTokens(
 				selectedAddressB,
 				selectedAddressA,
-				rebalanceValue,
+				Math.abs(rebalanceValue),
 				rebalanceSlippageBPS,
 				quoteurl,
 			);
@@ -1602,7 +1677,7 @@ async function balanceCheck() {
 }
 
 process.on("SIGINT", () => {
-	console.clear();
+	//console.clear();
 	console.log("CTRL+C detected! Performing cleanup...");
 	shutDown = true;
 
