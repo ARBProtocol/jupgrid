@@ -25,6 +25,7 @@ import {
 	questionAsync,
 	rl
 } from './utils.js';
+import e from 'express';
 
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 
@@ -641,12 +642,9 @@ async function initialize() {
 				console.log("Starting Grid Mode");
 			startGrid();
 			} else {
-
 				console.log("Infinity Mode is currently disabled. Please check back later.")
 				process.exit(0);
-
-				//DO NOT ENABLE INFINITY MODE UNTIL FULLY TESTED - THANK YOU.
-
+				
 				//console.log("Starting Infinity Mode");
 				//startInfinity();
 			}
@@ -703,7 +701,7 @@ async function startGrid () {
 
 async function startInfinity() {
 	//Balance check and rebalance to start
-	await balanceCheck();
+	//await balanceCheck();
 	infinityGrid();
 }
 
@@ -889,57 +887,68 @@ function formatElapsedTime(startTime) {
 
 async function infinityGrid() {
 	
-	//StopLoss trip if A+B < stopLossUSD
-		//stopLoss = true if currUsdTotalBalance < stopLossUSD
-
 	
-		
-	let currentBalances = await getBalance(wallet, selectedAddressA, selectedAddressB, selectedTokenA, selectedTokenB);
-	currBalanceA = currentBalances.balanceA;
-	currBalanceB = currentBalances.balanceB;
-	currUSDBalanceA = currentBalances.usdBalanceA;
-	currUSDBalanceB = currentBalances.usdBalanceB;
-	currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
-	let tokenBPrice = currUSDBalanceB / currBalanceB;
-	let tokenAPrice = currUSDBalanceA / currBalanceA;
 
-// Calculate the exchange rate
+let currentBalances = await getBalance(wallet, selectedAddressA, selectedAddressB, selectedTokenA, selectedTokenB);
+currBalanceA = currentBalances.balanceA;
+currBalanceB = currentBalances.balanceB;
+currUSDBalanceA = currentBalances.usdBalanceA;
+currUSDBalanceB = currentBalances.usdBalanceB;
+currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
+let tokenBPrice = currUSDBalanceB / currBalanceB;
+let tokenAPrice = currUSDBalanceA / currBalanceA;
+
+if (currUsdTotalBalance < stopLossUSD) {
+	//Emergency Stop Loss
+	console.log(`\n\u{1F6A8} Emergency Stop Loss Triggered! - Cashing out and Exiting`);
+
+}
+
+// Calculate the new prices of tokenB when it's up 1% and down 1%
+let newPriceBUp = tokenBPrice * 1.01;
+let newPriceBDown = tokenBPrice * 0.99;
 let exchangeRate = tokenBPrice / tokenAPrice;
 
 // Place sell order for B to A when tokenB is up 1%
-{
-    // Calculate the new price of tokenB when it's up 1%
-    let newPriceBUp = tokenBPrice * 1.01;
+let tokenBSellAmount = newPriceBUp - infinityTarget;
+let tokenBToTokenAOut = (tokenBSellAmount * exchangeRate) / Math.pow(10, selectedDecimalsA);
+let tokenBToTokenAIn = ((tokenBToTokenAOut / Math.pow(10, selectedDecimalsB)) * exchangeRate) *1.01;
+let tokenAReceiveAmountLamports = tokenBToTokenAIn * Math.pow(10, selectedDecimalsB);
+let estimatedMarketPriceUp = (tokenBToTokenAIn / tokenBToTokenAOut) * Math.pow(10, selectedDecimalsB);
 
-    // Calculate the amount of tokenB to sell to maintain the target USD value
-    let sellAmountTokenB = (currBalanceB * newPriceBUp - infinityTarget) / newPriceBUp;
-    let sellAmountLamportsB = sellAmountTokenB * Math.pow(10, selectedDecimalsB);
 
-    // Calculate the expected receive amount of tokenA
-    let expectedReceiveAmountTokenA = sellAmountTokenB * exchangeRate;
-    let expectedReceiveAmountLamportsA = expectedReceiveAmountTokenA * Math.pow(10, selectedDecimalsA);
+let recieve = (infinityTarget - (infinityTarget * 1.01)) / newPriceBUp; 
+let send = recieve * newPriceBUp;
+let market = send / recieve;
 
-    // Place the sell order
-    await sendTransactionAsync(sellAmountLamportsB, expectedReceiveAmountLamportsA, selectedAddressB, selectedAddressA, 1000);
-}
+console.log("Current Market Price: ", tokenBPrice);
+console.log(`Infinity Target: ${infinityTarget}`);
 
-// Place buy order for B when tokenB is down 1%
-{
-    // Calculate the new price of tokenB when it's down 1%
-    let newPriceBDown = tokenBPrice * 0.99;
+console.log(`\n${selectedTokenB} up 1%: ${newPriceBUp}`);
 
-    // Calculate the amount of tokenB to buy to maintain the target USD value
-    let buyAmountTokenB = (infinityTarget - currBalanceB * newPriceBDown) / newPriceBDown;
-    let buyAmountLamportsB = buyAmountTokenB * Math.pow(10, selectedDecimalsB);
+console.log("Amount of B to send: ", send);
+console.log("Amount of A to receive: ", recieve);
+console.log("Calculated Market Price: ", market);
+/*
+console.log("Amount of B to send: ", tokenBToTokenAOut.toFixed(9));
+console.log("Amount of A to receive: ", tokenAReceiveAmountLamports);
+console.log("Calculated Market Price: ", estimatedMarketPriceUp);
+*/
+// Calculate the amount of tokenB to buy to maintain the target USD value
+let tokenBBuyAmount = (infinityTarget - (infinityTarget * 0.99)) / newPriceBDown;
 
-    // Calculate the sell amount of tokenA needed to buy tokenB
-    let sellAmountTokenA = buyAmountTokenB * newPriceBDown;
-    let sellAmountLamportsA = sellAmountTokenA * Math.pow(10, selectedDecimalsA);
+// Calculate the amount of tokenA to offer
+let tokenAOfferAmount = tokenBBuyAmount * newPriceBDown;
 
-    // Place the buy order
-    await sendTransactionAsync(sellAmountLamportsA, buyAmountLamportsB, selectedAddressA, selectedAddressB, 1000);
-}
-	
+// Calculate the expected market price
+let expectedMarketPriceDown = tokenAOfferAmount / tokenBBuyAmount;
+
+console.log(`\n${selectedTokenB} down 1%: ${newPriceBDown}`);
+console.log("Amount of B to recieve: ", tokenBBuyAmount);
+console.log("Amount of A to send: ", tokenAOfferAmount);
+console.log("Calculated Market Price: ", expectedMarketPriceDown);
+
+
 }
 
 
