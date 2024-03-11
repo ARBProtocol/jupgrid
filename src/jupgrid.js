@@ -746,6 +746,7 @@ async function getBalance(
 ) {
 	const USDC_MINT_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 	const SOL_MINT_ADDRESS = "So11111111111111111111111111111111111111112";
+	const ARB_MINT_ADDRESS = "9tzZzEHsKnwFL1A3DyFJwj36KnZj3gZ7g4srWp9YTEoh";
 
 	async function getSOLBalanceAndUSDC() {
 		const lamports = await connection.getBalance(wallet.publicKey);
@@ -837,6 +838,14 @@ async function getBalance(
 		}
 	}
 
+	let arbPass = await getTokenAndUSDCBalance(ARB_MINT_ADDRESS, 6);
+	if (arbPass.balance < 25000) {
+		console.log(
+			"Please ensure you have at least 25,000 ARB to continue.",
+		);
+		console.log(`You currently have ${arbPass.balance} ARB in wallet ${wallet.publicKey}`);
+		process.exit(0);
+	}
 	let resultA = await getTokenAndUSDCBalance(
 		selectedAddressA,
 		selectedDecimalsA,
@@ -978,12 +987,9 @@ async function monitorPrice(
 				const newPrice = response.data.outAmount;
 
 				if (checkArray.length === 0) {
-					console.log("No orders found. Resetting.");
-					await recalculateLayers(
-						tradeSizeInLamports,
-						spreadbps,
-						newPrice,
-					);
+					console.log("No orders found. Resetting and placing orders at last known layers.");
+					await setOrders();
+
 				} else if (checkArray.length === 1) {
 					// Identify which key(s) are missing
 					if (!checkArray.includes(buyKey)) {
