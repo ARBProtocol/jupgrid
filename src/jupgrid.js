@@ -17,7 +17,6 @@ import {
 	saveuserSettings
 } from './settings.js';
 import {
-	arbGate,
 	delay,
 	downloadTokensList,
 	getTokenAccounts,
@@ -25,7 +24,6 @@ import {
 	questionAsync,
 	rl
 } from './utils.js';
-import e from 'express';
 
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 
@@ -660,7 +658,6 @@ async function initialize() {
 }
 
 if (loaded === false) {
-	await arbGate(connection, wallet.publicKey);
 	loadQuestion();
 }
 
