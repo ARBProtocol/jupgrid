@@ -63,6 +63,8 @@ let {
 	startPrice = null,
 	spread = null,
 	spreadbps = null,
+	priorityFee = null,
+	validPriorityFee = false,
 	buyInput = null,
 	buyOutput = null,
 	sellInput = null,
@@ -120,6 +122,7 @@ let {
 		selectedTokenB: null,
 		tradeSize: null,
 		spread: null,
+		priorityFee: null,
 		rebalanceAllowed: null,
 		rebalancePercentage: null,
 		rebalanceSlippageBPS: null,
@@ -162,8 +165,11 @@ async function loadQuestion() {
 									`Spread: ${userSettings.spread}`
 								);
 								console.log(
-									`Stop Loss: ${userSettings.stopLossUSD}`
+									`Priority Fee: ${userSettings.priorityFee}`
 								);
+								//console.log(
+								//	`Stop Loss: ${userSettings.stopLossUSD}`
+								//);
 								console.log(
 									`Monitoring delay: ${userSettings.monitorDelay}ms`,
 								);
@@ -196,6 +202,7 @@ async function loadQuestion() {
 												selectedDecimalsB,
 												tradeSize,
 												spread,
+												priorityFee,
 												rebalanceAllowed,
 												rebalancePercentage,
 												rebalanceSlippageBPS,
@@ -260,6 +267,9 @@ async function initialize() {
 		}
 		if (spread != null) {
 			validSpread = true;
+		}
+		if (priorityFee != null) {
+			validPriorityFee = true;
 		}
 		if (rebalanceAllowed != null) {
 			validRebalanceAllowed = true;
@@ -435,6 +445,33 @@ async function initialize() {
 			}
 		}
 
+		if (userSettings.priorityFee) {
+			priorityFee = !isNaN(parseFloat(userSettings.priorityFee));
+			if (!validPriorityFee) {
+				console.log(
+					"Invalid priority fee found in user data. Please re-enter.",
+				);
+				userSettings.priorityFee = null; // Reset spread percentage
+			} else validPriorityFee = true;
+		}
+
+		// If spread percentage is not valid, prompt the user
+		while (!validPriorityFee) {
+			const priorityFeeInput = await questionAsync(
+				"What Priority Fee do you want to use? (Micro Lamports - 1000 = 0.000001000 SOL: ",
+			);
+			priorityFee = parseFloat(priorityFeeInput);
+			if (!isNaN(priorityFee)) {
+				userSettings.priorityFee = priorityFee;
+				validPriorityFee = true;
+			} else {
+				console.log(
+					"Invalid Priority Fee. Please enter a valid number.",
+				);
+			}
+		}
+
+		/*
 		if (userSettings.stopLossUSD) {
 			validStopLossUSD = !isNaN(parseFloat(userSettings.stopLossUSD));
 			if (!validStopLossUSD) {
@@ -444,6 +481,7 @@ async function initialize() {
 				userSettings.stopLossUSD = null; // Reset stop loss value
 			} else validStopLossUSD = true;
 		}
+		
 		
 		// If stop loss value is not valid, prompt the user
 		while (!validStopLossUSD) {
@@ -459,6 +497,7 @@ async function initialize() {
 			}
 		}
 
+		
 		// Ask the user if they want to enable Infinity Mode
 		const infinityModeInput = await questionAsync(
 			`Would you like Infinity Mode? (Y/N): `,
@@ -490,7 +529,7 @@ async function initialize() {
 				}
 			}
 		}
-
+		*/
 		while (rebalanceAllowed === null) {
 			const rebalanceQuestion = await questionAsync(
 				"Do you want to allow rebalancing of Tokens (Currently Experimental)? (Y/N): ",
@@ -626,6 +665,7 @@ async function initialize() {
 				selectedDecimalsB,
 				tradeSize,
 				spread,
+				priorityFee,
 				rebalanceAllowed,
 				rebalancePercentage,
 				rebalanceSlippageBPS,
@@ -636,16 +676,16 @@ async function initialize() {
 			console.clear();
 			console.log(`\n\u{1F680} Starting Jupgrid! Version ${version}`);
 
-			if (!infinityMode) {
-				console.log("Starting Grid Mode");
+			//if (!infinityMode) {
+				//console.log("Starting Grid Mode");
 			startGrid();
-			} else {
-				console.log("Infinity Mode is currently disabled. Please check back later.")
-				process.exit(0);
+			//} else {
+			//	console.log("Infinity Mode is currently disabled. Please check back later.")
+			//	process.exit(0);
 				
 				//console.log("Starting Infinity Mode");
 				//startInfinity();
-			}
+			//}
 
 		} catch (error) {
 			console.error("Error: Connection or Token Data Error");
@@ -1302,7 +1342,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 	while (attempt < maxRetries) {
 		attempt++;
 		try {
-			let PRIORITY_RATE = 100 * attempt;
+			let PRIORITY_RATE = priorityFee * attempt;
 			let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
 			// Make the API call to create the order and get back the transaction details
 			const response = await fetch(
@@ -1319,7 +1359,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 						expiredAt: null,
 						base: base.publicKey.toString(),
 						referralAccount: "7WGULgEo4Veqj6sCvA3VNxGgBf3EXJd8sW2XniBda3bJ",
-						referralName: "Jupiter Gridbot",
+						referralName: "Jupiter GridBot",
 					}),
 				},
 			);
