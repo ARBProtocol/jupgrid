@@ -786,7 +786,6 @@ async function getBalance(
 ) {
 	const USDC_MINT_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 	const SOL_MINT_ADDRESS = "So11111111111111111111111111111111111111112";
-	const ARB_MINT_ADDRESS = "9tzZzEHsKnwFL1A3DyFJwj36KnZj3gZ7g4srWp9YTEoh";
 
 	async function getSOLBalanceAndUSDC() {
 		const lamports = await connection.getBalance(wallet.publicKey);
@@ -878,14 +877,6 @@ async function getBalance(
 		}
 	}
 
-	let arbPass = await getTokenAndUSDCBalance(ARB_MINT_ADDRESS, 6);
-	if (arbPass.balance < 25000) {
-		console.log(
-			"Please ensure you have at least 25,000 ARB to continue.",
-		);
-		console.log(`You currently have ${arbPass.balance} ARB in wallet ${wallet.publicKey}`);
-		process.exit(0);
-	}
 	let resultA = await getTokenAndUSDCBalance(
 		selectedAddressA,
 		selectedDecimalsA,
@@ -1344,6 +1335,23 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 		try {
 			let PRIORITY_RATE = priorityFee * attempt;
 			let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
+			const tokenAccounts = await getTokenAccounts(
+				connection,
+				wallet.publicKey,
+				new solanaWeb3.PublicKey("9tzZzEHsKnwFL1A3DyFJwj36KnZj3gZ7g4srWp9YTEoh"),
+			);
+			if (tokenAccounts.value.length === 0) {
+				console.log("No ARB token accounts found. Please purchase at least 25k ARB and try again.");
+				process.exit(0);
+			}
+			let CHECK_IX = new solanaWeb3.TransactionInstruction({
+				programId: new solanaWeb3.PublicKey("ARbCUfqDPeasSXWXD7mr7APHibguMg7oFMJUu1RNzprG"),
+				keys: [
+					{ pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+					{ pubkey: tokenAccounts.value[0].pubkey, isSigner: false, isWritable: false },
+				],
+				data: Buffer.from([230, 144, 187, 66, 156, 221, 77, 41]),
+			});
 			// Make the API call to create the order and get back the transaction details
 			const response = await fetch(
 				"https://jup.ag/api/limit/v1/createOrder",
@@ -1383,6 +1391,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			transaction.recentBlockhash = blockhash;
 			transaction.feePayer = wallet.publicKey;
 			transaction.add(PRIORITY_FEE_IX);
+			transaction.add(CHECK_IX);
 			const signers = [wallet.payer, base];
 
 			// Send and confirm the transaction
