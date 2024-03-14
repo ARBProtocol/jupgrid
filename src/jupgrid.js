@@ -496,7 +496,7 @@ async function initialize() {
 				console.log("Invalid stop loss value. Please enter a valid number.");
 			}
 		}
-
+		
 		
 		// Ask the user if they want to enable Infinity Mode
 		const infinityModeInput = await questionAsync(
@@ -677,14 +677,14 @@ async function initialize() {
 			console.log(`\n\u{1F680} Starting Jupgrid! Version ${version}`);
 
 			//if (!infinityMode) {
-				//console.log("Starting Grid Mode");
+			//	console.log("Starting Grid Mode");
 			startGrid();
 			//} else {
-			//	console.log("Infinity Mode is currently disabled. Please check back later.")
-			//	process.exit(0);
+				//console.log("Infinity Mode is currently disabled. Please check back later.")
+				//process.exit(0);
 				
-				//console.log("Starting Infinity Mode");
-				//startInfinity();
+			//	console.log("Starting Infinity Mode");
+			//	startInfinity();
 			//}
 
 		} catch (error) {
@@ -923,69 +923,70 @@ function formatElapsedTime(startTime) {
 }
 
 async function infinityGrid() {
-	
-	
-
-let currentBalances = await getBalance(wallet, selectedAddressA, selectedAddressB, selectedTokenA, selectedTokenB);
-currBalanceA = currentBalances.balanceA;
-currBalanceB = currentBalances.balanceB;
-currUSDBalanceA = currentBalances.usdBalanceA;
-currUSDBalanceB = currentBalances.usdBalanceB;
-currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
-let tokenBPrice = currUSDBalanceB / currBalanceB;
-let tokenAPrice = currUSDBalanceA / currBalanceA;
+	//await balanceCheck()
+	process.exit(0);
+	let currentBalances = await getBalance(wallet, selectedAddressA, selectedAddressB, selectedTokenA, selectedTokenB);
+	currBalanceA = currentBalances.balanceA; // Current balance of token A
+	currBalanceB = currentBalances.balanceB; // Current balance of token B
+	currUSDBalanceA = currentBalances.usdBalanceA; // Current USD balance of token A
+	currUSDBalanceB = currentBalances.usdBalanceB; // Current USD balance of token B
+	currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB; // Current total USD balance
+	let tokenBPrice = currUSDBalanceB / currBalanceB; // Current price of token B
+	let tokenAPrice = currUSDBalanceA / currBalanceA; // Current price of token A
 
 if (currUsdTotalBalance < stopLossUSD) {
 	//Emergency Stop Loss
 	console.log(`\n\u{1F6A8} Emergency Stop Loss Triggered! - Cashing out and Exiting`);
 
 }
-
 // Calculate the new prices of tokenB when it's up 1% and down 1%
-let newPriceBUp = tokenBPrice * 1.01;
-let newPriceBDown = tokenBPrice * 0.99;
-let exchangeRate = tokenBPrice / tokenAPrice;
+let newPriceBUp = tokenBPrice * 1.05; // 1% increase
+let newPriceBDown = tokenBPrice * 0.95; // 1% decrease
 
-// Place sell order for B to A when tokenB is up 1%
-let tokenBSellAmount = newPriceBUp - infinityTarget;
-let tokenBToTokenAOut = (tokenBSellAmount * exchangeRate) / Math.pow(10, selectedDecimalsA);
-let tokenBToTokenAIn = ((tokenBToTokenAOut / Math.pow(10, selectedDecimalsB)) * exchangeRate) *1.01;
-let tokenAReceiveAmountLamports = tokenBToTokenAIn * Math.pow(10, selectedDecimalsB);
-let estimatedMarketPriceUp = (tokenBToTokenAIn / tokenBToTokenAOut) * Math.pow(10, selectedDecimalsB);
-
-
-let recieve = (infinityTarget - (infinityTarget * 1.01)) / newPriceBUp; 
-let send = recieve * newPriceBUp;
-let market = send / recieve;
+let marketUpIn = (currUSDBalanceB - infinityTarget) / newPriceBUp; // Amount of tokenB to buy to maintain the target USD value
+let marketUpOut = marketUpIn * newPriceBUp ;
+let marketUpCalc = marketUpOut / marketUpIn;
 
 console.log("Current Market Price: ", tokenBPrice);
 console.log(`Infinity Target: ${infinityTarget}`);
 
 console.log(`\n${selectedTokenB} up 1%: ${newPriceBUp}`);
+console.log("Amount of B to send: ", marketUpIn);
+console.log("Amount of A to receive: ", marketUpOut);
+console.log("Calculated Market Price: ", marketUpCalc);
 
-console.log("Amount of B to send: ", send);
-console.log("Amount of A to receive: ", recieve);
-console.log("Calculated Market Price: ", market);
-/*
-console.log("Amount of B to send: ", tokenBToTokenAOut.toFixed(9));
-console.log("Amount of A to receive: ", tokenAReceiveAmountLamports);
-console.log("Calculated Market Price: ", estimatedMarketPriceUp);
-*/
 // Calculate the amount of tokenB to buy to maintain the target USD value
-let tokenBBuyAmount = (infinityTarget - (infinityTarget * 0.99)) / newPriceBDown;
-
-// Calculate the amount of tokenA to offer
-let tokenAOfferAmount = tokenBBuyAmount * newPriceBDown;
-
-// Calculate the expected market price
-let expectedMarketPriceDown = tokenAOfferAmount / tokenBBuyAmount;
+let marketDownOut = (infinityTarget - currUSDBalanceB) / newPriceBDown
+let marketDownIn = marketDownOut * newPriceBDown;
+let marketDownCalc = marketDownIn / marketDownOut;
 
 console.log(`\n${selectedTokenB} down 1%: ${newPriceBDown}`);
-console.log("Amount of B to recieve: ", tokenBBuyAmount);
-console.log("Amount of A to send: ", tokenAOfferAmount);
-console.log("Calculated Market Price: ", expectedMarketPriceDown);
+console.log("Amount of B to recieve: ", marketDownOut);
+console.log("Amount of A to send: ", marketDownIn);
+console.log("Calculated Market Price: ", marketDownCalc);
 
 
+
+
+
+/*
+//Buy layer
+sendTx(
+	Math.floor(marketDownIn * Math.pow(10, selectedDecimalsA)),
+	Math.floor(marketDownOut * Math.pow(10, selectedDecimalsB)),
+	selectedAddressA,
+	selectedAddressB,
+	Keypair.generate(),
+);
+//Sell Layer
+sendTx(
+	Math.floor(marketUpIn * Math.pow(10, selectedDecimalsB)),
+	Math.floor(marketUpOut * Math.pow(10, selectedDecimalsA)),
+	selectedAddressB,
+	selectedAddressA,
+	Keypair.generate(),
+);
+*/
 }
 
 
@@ -1466,58 +1467,64 @@ async function rebalanceTokens(
 	if (shutDown) return;
 	const rebalanceLamports = Math.floor(rebalanceValue);
 	console.log(`Rebalancing Tokens ${selectedTokenA} and ${selectedTokenB}`);
-	try {
-		// Fetch the quote
-		const quoteResponse = await axios.get(
-			`${quoteurl}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rebalanceLamports}&slippageBps=${rebalanceSlippageBPS}`,
-		);
-		//console.log(quoteResponse.data);
+	let maxAttempts = 5;
+	let attempts = 0;
+	while (attempts < maxAttempts) {
+		attempts++;
+		try {
+			// Fetch the quote
+			const quoteResponse = await axios.get(
+				`${quoteurl}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rebalanceLamports}&slippageBps=${rebalanceSlippageBPS}`,
+			);
+			//console.log(quoteResponse.data);
 
-		const swapApiResponse = await fetch(
-			"https://quote-api.jup.ag/v6/swap",
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
+			const swapApiResponse = await fetch(
+				"https://quote-api.jup.ag/v6/swap",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						quoteResponse: quoteResponse.data,
+						userPublicKey: wallet.publicKey,
+						wrapAndUnwrapSol: true,
+					}),
 				},
-				body: JSON.stringify({
-					quoteResponse: quoteResponse.data,
-					userPublicKey: wallet.publicKey,
-					wrapAndUnwrapSol: true,
-				}),
-			},
-		);
+			);
 
-		const { blockhash } = await connection.getLatestBlockhash();
-		const swapData = await swapApiResponse.json();
+			const { blockhash } = await connection.getLatestBlockhash();
+			const swapData = await swapApiResponse.json();
 
-		if (!swapData || !swapData.swapTransaction) {
-			throw new Error("Swap transaction data not found.");
+			if (!swapData || !swapData.swapTransaction) {
+				throw new Error("Swap transaction data not found.");
+			}
+
+			// Deserialize the transaction correctly for a versioned message
+			const swapTransactionBuffer = Buffer.from(
+				swapData.swapTransaction,
+				"base64",
+			);
+			let transaction = VersionedTransaction.deserialize(
+				swapTransactionBuffer,
+			);
+			//console.log(transaction);
+
+			transaction.recentBlockhash = blockhash;
+			transaction.sign([wallet.payer]);
+			// Send it
+			const rawTransaction = transaction.serialize();
+			const txid = await connection.sendRawTransaction(rawTransaction, {
+				skipPreflight: false,
+				preflightCommitment: "processed",
+				maxRetries: 5,
+			});
+			await connection.confirmTransaction(txid, "processed");
+			console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
+			break;
+		} catch (error) {
+			console.error("Error during the transaction:", error);
 		}
-
-		// Deserialize the transaction correctly for a versioned message
-		const swapTransactionBuffer = Buffer.from(
-			swapData.swapTransaction,
-			"base64",
-		);
-		let transaction = VersionedTransaction.deserialize(
-			swapTransactionBuffer,
-		);
-		//console.log(transaction);
-
-		transaction.recentBlockhash = blockhash;
-		transaction.sign([wallet.payer]);
-		// Send it
-		const rawTransaction = transaction.serialize();
-		const txid = await connection.sendRawTransaction(rawTransaction, {
-			skipPreflight: false,
-			preflightCommitment: "processed",
-			maxRetries: 5,
-		});
-		await connection.confirmTransaction(txid, "processed");
-		console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
-	} catch (error) {
-		console.error("Error during the transaction:", error);
 	}
 }
 
