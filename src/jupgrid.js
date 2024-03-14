@@ -53,6 +53,8 @@ let {
 	tradeSize = null,
 	tradeSizeInLamports = null,
 	validSpread = null,
+	stopLossUSD=  null,
+	infinityTarget = null,
 	loaded = false,
 	openOrders = [],
 	checkArray = [],
@@ -61,6 +63,8 @@ let {
 	startPrice = null,
 	spread = null,
 	spreadbps = null,
+	priorityFee = null,
+	validPriorityFee = false,
 	buyInput = null,
 	buyOutput = null,
 	sellInput = null,
@@ -91,6 +95,8 @@ let {
 	validRebalanceSlippage = false,
 	rebalancePercentage = 0,
 	validRebalancePercentage = false,
+	validStopLossUSD = false,
+	validInfinityTarget = false,
 	startTime = new Date(),
 	profitA = null,
 	profitB = null,
@@ -108,15 +114,21 @@ let {
 	recoveredTransactionsCount = 0,
 	lastFilledOrder = null, // 'buy' or 'sell'
 	sortedLayers,
+	infinityMode = false,
+	adjustmentA = 0,
+	adjustmentB = 0,
 	userSettings = {
 		selectedTokenA: null,
 		selectedTokenB: null,
 		tradeSize: null,
 		spread: null,
+		priorityFee: null,
 		rebalanceAllowed: null,
 		rebalancePercentage: null,
 		rebalanceSlippageBPS: null,
 		monitorDelay: null,
+		stopLossUSD: null,
+		infinityTarget: null,
 	},
 } = {};
 
@@ -149,7 +161,15 @@ async function loadQuestion() {
 								console.log(
 									`Order Size (in ${userSettings.selectedTokenA}): ${userSettings.tradeSize}`,
 								);
-								console.log(`Spread: ${userSettings.spread}`);
+								console.log(
+									`Spread: ${userSettings.spread}`
+								);
+								console.log(
+									`Priority Fee: ${userSettings.priorityFee}`
+								);
+								//console.log(
+								//	`Stop Loss: ${userSettings.stopLossUSD}`
+								//);
 								console.log(
 									`Monitoring delay: ${userSettings.monitorDelay}ms`,
 								);
@@ -163,7 +183,7 @@ async function loadQuestion() {
 									console.log(
 										`Rebalance Swap Slippage: ${userSettings.rebalanceSlippageBPS / 100}%`,
 									);
-								}
+								}								
 
 								// Prompt for confirmation to use these settings
 								rl.question(
@@ -182,10 +202,13 @@ async function loadQuestion() {
 												selectedDecimalsB,
 												tradeSize,
 												spread,
+												priorityFee,
 												rebalanceAllowed,
 												rebalancePercentage,
 												rebalanceSlippageBPS,
 												monitorDelay,
+												stopLossUSD,
+												infinityTarget,
 											} = userSettings);
 											console.log(
 												"Settings applied successfully!",
@@ -245,6 +268,9 @@ async function initialize() {
 		if (spread != null) {
 			validSpread = true;
 		}
+		if (priorityFee != null) {
+			validPriorityFee = true;
+		}
 		if (rebalanceAllowed != null) {
 			validRebalanceAllowed = true;
 		}
@@ -265,6 +291,14 @@ async function initialize() {
 		let validMonitorDelay = false;
 		if (monitorDelay >= 5000) {
 			validMonitorDelay = true;
+		}
+		let validStopLossUSD = false;
+		if (stopLossUSD != null) {
+			validStopLossUSD = true;
+		}
+		let validInfinityTarget = false;
+		if (infinityTarget != null) {
+			validInfinityTarget = true;
 		}
 
 		tokens = await getTokens();
@@ -411,6 +445,91 @@ async function initialize() {
 			}
 		}
 
+		if (userSettings.priorityFee) {
+			priorityFee = !isNaN(parseFloat(userSettings.priorityFee));
+			if (!validPriorityFee) {
+				console.log(
+					"Invalid priority fee found in user data. Please re-enter.",
+				);
+				userSettings.priorityFee = null; // Reset spread percentage
+			} else validPriorityFee = true;
+		}
+
+		// If spread percentage is not valid, prompt the user
+		while (!validPriorityFee) {
+			const priorityFeeInput = await questionAsync(
+				"What Priority Fee do you want to use? (Micro Lamports - 1000 = 0.000001000 SOL: ",
+			);
+			priorityFee = parseFloat(priorityFeeInput);
+			if (!isNaN(priorityFee)) {
+				userSettings.priorityFee = priorityFee;
+				validPriorityFee = true;
+			} else {
+				console.log(
+					"Invalid Priority Fee. Please enter a valid number.",
+				);
+			}
+		}
+
+		/*
+		if (userSettings.stopLossUSD) {
+			validStopLossUSD = !isNaN(parseFloat(userSettings.stopLossUSD));
+			if (!validStopLossUSD) {
+				console.log(
+					"Invalid stop loss value found in user data. Please re-enter.",
+				);
+				userSettings.stopLossUSD = null; // Reset stop loss value
+			} else validStopLossUSD = true;
+		}
+		
+		
+		// If stop loss value is not valid, prompt the user
+		while (!validStopLossUSD) {
+			const stopLossUSDInput = await questionAsync(
+				`Please Enter the Stop Loss Value in USD: `,
+			);
+			stopLossUSD = parseFloat(stopLossUSDInput);
+			if (!isNaN(stopLossUSD)) {
+				userSettings.stopLossUSD = stopLossUSD;
+				validStopLossUSD = true;
+			} else {
+				console.log("Invalid stop loss value. Please enter a valid number.");
+			}
+		}
+		
+		
+		// Ask the user if they want to enable Infinity Mode
+		const infinityModeInput = await questionAsync(
+			`Would you like Infinity Mode? (Y/N): `,
+		);
+		infinityMode = infinityModeInput.toLowerCase() === 'y';
+
+		if (infinityMode) {
+			if (userSettings.infinityTarget) {
+				validInfinityTarget = !isNaN(parseFloat(userSettings.infinityTarget));
+				if (!validInfinityTarget) {
+					console.log(
+						"Invalid infinity target value found in user data. Please re-enter.",
+					);
+					userSettings.infinityTarget = null; // Reset infinity target value
+				} else validInfinityTarget = true;
+			}
+
+			// If infinity target value is not valid, prompt the user
+			while (!validInfinityTarget) {
+				const infinityTargetInput = await questionAsync(
+					`Please Enter the Infinity Target Value: `,
+				);
+				infinityTarget = Math.floor(parseFloat(infinityTargetInput));
+				if (!isNaN(infinityTarget) && Number.isInteger(infinityTarget) && infinityTarget > userSettings.stopLossUSD) {
+					userSettings.infinityTarget = infinityTarget;
+					validInfinityTarget = true;
+				} else {
+					console.log("Invalid infinity target value. Please enter a valid integer that is larger than the stop loss value.");
+				}
+			}
+		}
+		*/
 		while (rebalanceAllowed === null) {
 			const rebalanceQuestion = await questionAsync(
 				"Do you want to allow rebalancing of Tokens (Currently Experimental)? (Y/N): ",
@@ -546,46 +665,28 @@ async function initialize() {
 				selectedDecimalsB,
 				tradeSize,
 				spread,
+				priorityFee,
 				rebalanceAllowed,
 				rebalancePercentage,
 				rebalanceSlippageBPS,
 				monitorDelay,
+				stopLossUSD,
+				infinityTarget,
 			);
 			console.clear();
 			console.log(`\n\u{1F680} Starting Jupgrid! Version ${version}`);
 
-			let initialBalances = await getBalance(
-				wallet,
-				selectedAddressA,
-				selectedAddressB,
-				selectedTokenA,
-				selectedTokenB,
-			);
-			initBalanceA = initialBalances.balanceA;
-			initUsdBalanceA = initialBalances.usdBalanceA;
-			initBalanceB = initialBalances.balanceB;
-			initUsdBalanceB = initialBalances.usdBalanceB;
-			initUsdTotalBalance = initUsdBalanceA + initUsdBalanceB;
+			//if (!infinityMode) {
+			//	console.log("Starting Grid Mode");
+			startGrid();
+			//} else {
+				//console.log("Infinity Mode is currently disabled. Please check back later.")
+				//process.exit(0);
+				
+			//	console.log("Starting Infinity Mode");
+			//	startInfinity();
+			//}
 
-			let currentBalances = await getBalance(
-				wallet,
-				selectedAddressA,
-				selectedAddressB,
-				selectedTokenA,
-				selectedTokenB,
-			);
-			currBalanceA = currentBalances.balanceA;
-			currBalanceB = currentBalances.balanceB;
-			currUSDBalanceA = currentBalances.usdBalanceA;
-			currUSDBalanceB = currentBalances.usdBalanceB;
-			currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
-
-			console.log(
-				`${chalk.cyan(selectedTokenA)} Balance: ${chalk.cyan(initBalanceA)}, worth $${chalk.cyan(initUsdBalanceA.toFixed(2))}`,
-				`\n${chalk.magenta(selectedTokenB)} Balance: ${chalk.magenta(initBalanceB)}, worth $${chalk.magenta(initUsdBalanceB.toFixed(2))}`,
-				`\nTotal User Balance: $${initUsdTotalBalance.toFixed(2)}`,
-			);
-			setOrders(tradeSizeInLamports);
 		} catch (error) {
 			console.error("Error: Connection or Token Data Error");
 			console.error("Error:", error);
@@ -598,6 +699,47 @@ async function initialize() {
 
 if (loaded === false) {
 	loadQuestion();
+}
+
+async function startGrid () {
+	let initialBalances = await getBalance(
+		wallet,
+		selectedAddressA,
+		selectedAddressB,
+		selectedTokenA,
+		selectedTokenB,
+	);
+	initBalanceA = initialBalances.balanceA;
+	initUsdBalanceA = initialBalances.usdBalanceA;
+	initBalanceB = initialBalances.balanceB;
+	initUsdBalanceB = initialBalances.usdBalanceB;
+	initUsdTotalBalance = initUsdBalanceA + initUsdBalanceB;
+
+	let currentBalances = await getBalance(
+		wallet,
+		selectedAddressA,
+		selectedAddressB,
+		selectedTokenA,
+		selectedTokenB,
+	);
+	currBalanceA = currentBalances.balanceA;
+	currBalanceB = currentBalances.balanceB;
+	currUSDBalanceA = currentBalances.usdBalanceA;
+	currUSDBalanceB = currentBalances.usdBalanceB;
+	currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB;
+
+	console.log(
+		`${chalk.cyan(selectedTokenA)} Balance: ${chalk.cyan(initBalanceA)}, worth $${chalk.cyan(initUsdBalanceA.toFixed(2))}`,
+		`\n${chalk.magenta(selectedTokenB)} Balance: ${chalk.magenta(initBalanceB)}, worth $${chalk.magenta(initUsdBalanceB.toFixed(2))}`,
+		`\nTotal User Balance: $${initUsdTotalBalance.toFixed(2)}`,
+	);
+	setOrders(tradeSizeInLamports);
+}
+
+async function startInfinity() {
+	//Balance check and rebalance to start
+	//await balanceCheck();
+	infinityGrid();
 }
 
 function generatePriceLayers(newPrice, spreadbps, totalLayers) {
@@ -780,6 +922,74 @@ function formatElapsedTime(startTime) {
 	console.log(`Run time: ${hours}:${minutes}:${seconds}`);
 }
 
+async function infinityGrid() {
+	//await balanceCheck()
+	process.exit(0);
+	let currentBalances = await getBalance(wallet, selectedAddressA, selectedAddressB, selectedTokenA, selectedTokenB);
+	currBalanceA = currentBalances.balanceA; // Current balance of token A
+	currBalanceB = currentBalances.balanceB; // Current balance of token B
+	currUSDBalanceA = currentBalances.usdBalanceA; // Current USD balance of token A
+	currUSDBalanceB = currentBalances.usdBalanceB; // Current USD balance of token B
+	currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB; // Current total USD balance
+	let tokenBPrice = currUSDBalanceB / currBalanceB; // Current price of token B
+	let tokenAPrice = currUSDBalanceA / currBalanceA; // Current price of token A
+
+if (currUsdTotalBalance < stopLossUSD) {
+	//Emergency Stop Loss
+	console.log(`\n\u{1F6A8} Emergency Stop Loss Triggered! - Cashing out and Exiting`);
+
+}
+// Calculate the new prices of tokenB when it's up 1% and down 1%
+let newPriceBUp = tokenBPrice * 1.05; // 1% increase
+let newPriceBDown = tokenBPrice * 0.95; // 1% decrease
+
+let marketUpIn = (currUSDBalanceB - infinityTarget) / newPriceBUp; // Amount of tokenB to buy to maintain the target USD value
+let marketUpOut = marketUpIn * newPriceBUp ;
+let marketUpCalc = marketUpOut / marketUpIn;
+
+console.log("Current Market Price: ", tokenBPrice);
+console.log(`Infinity Target: ${infinityTarget}`);
+
+console.log(`\n${selectedTokenB} up 1%: ${newPriceBUp}`);
+console.log("Amount of B to send: ", marketUpIn);
+console.log("Amount of A to receive: ", marketUpOut);
+console.log("Calculated Market Price: ", marketUpCalc);
+
+// Calculate the amount of tokenB to buy to maintain the target USD value
+let marketDownOut = (infinityTarget - currUSDBalanceB) / newPriceBDown
+let marketDownIn = marketDownOut * newPriceBDown;
+let marketDownCalc = marketDownIn / marketDownOut;
+
+console.log(`\n${selectedTokenB} down 1%: ${newPriceBDown}`);
+console.log("Amount of B to recieve: ", marketDownOut);
+console.log("Amount of A to send: ", marketDownIn);
+console.log("Calculated Market Price: ", marketDownCalc);
+
+
+
+
+
+/*
+//Buy layer
+sendTx(
+	Math.floor(marketDownIn * Math.pow(10, selectedDecimalsA)),
+	Math.floor(marketDownOut * Math.pow(10, selectedDecimalsB)),
+	selectedAddressA,
+	selectedAddressB,
+	Keypair.generate(),
+);
+//Sell Layer
+sendTx(
+	Math.floor(marketUpIn * Math.pow(10, selectedDecimalsB)),
+	Math.floor(marketUpOut * Math.pow(10, selectedDecimalsA)),
+	selectedAddressB,
+	selectedAddressA,
+	Keypair.generate(),
+);
+*/
+}
+
+
 async function monitorPrice(
 	selectedAddressA,
 	selectedAddressB,
@@ -809,12 +1019,9 @@ async function monitorPrice(
 				const newPrice = response.data.outAmount;
 
 				if (checkArray.length === 0) {
-					console.log("No orders found. Resetting.");
-					await recalculateLayers(
-						tradeSizeInLamports,
-						spreadbps,
-						newPrice,
-					);
+					console.log("No orders found. Resetting and placing orders at last known layers.");
+					await setOrders();
+
 				} else if (checkArray.length === 1) {
 					// Identify which key(s) are missing
 					if (!checkArray.includes(buyKey)) {
@@ -1127,8 +1334,25 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 	while (attempt < maxRetries) {
 		attempt++;
 		try {
-			let PRIORITY_RATE = 100 * attempt;
+			let PRIORITY_RATE = priorityFee * attempt;
 			let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
+			const tokenAccounts = await getTokenAccounts(
+				connection,
+				wallet.publicKey,
+				new solanaWeb3.PublicKey("9tzZzEHsKnwFL1A3DyFJwj36KnZj3gZ7g4srWp9YTEoh"),
+			);
+			if (tokenAccounts.value.length === 0) {
+				console.log("No ARB token accounts found. Please purchase at least 25k ARB and try again.");
+				process.exit(0);
+			}
+			let CHECK_IX = new solanaWeb3.TransactionInstruction({
+				programId: new solanaWeb3.PublicKey("ARbCUfqDPeasSXWXD7mr7APHibguMg7oFMJUu1RNzprG"),
+				keys: [
+					{ pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+					{ pubkey: tokenAccounts.value[0].pubkey, isSigner: false, isWritable: false },
+				],
+				data: Buffer.from([230, 144, 187, 66, 156, 221, 77, 41]),
+			});
 			// Make the API call to create the order and get back the transaction details
 			const response = await fetch(
 				"https://jup.ag/api/limit/v1/createOrder",
@@ -1143,6 +1367,8 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 						outputMint: outputMint.toString(),
 						expiredAt: null,
 						base: base.publicKey.toString(),
+						referralAccount: "7WGULgEo4Veqj6sCvA3VNxGgBf3EXJd8sW2XniBda3bJ",
+						referralName: "Jupiter GridBot",
 					}),
 				},
 			);
@@ -1166,6 +1392,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			transaction.recentBlockhash = blockhash;
 			transaction.feePayer = wallet.publicKey;
 			transaction.add(PRIORITY_FEE_IX);
+			transaction.add(CHECK_IX);
 			const signers = [wallet.payer, base];
 
 			// Send and confirm the transaction
@@ -1218,7 +1445,8 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			} else {
 				// Handle all other errors
 				spinner.fail(
-					`Attempt ${attempt} - Error in transaction: ${error.message}`,
+					//`Attempt ${attempt} - Error in transaction: ${error.message}`,
+					spinner.fail(`Attempt ${attempt} - Error in transaction: ${error.message}, Full error: ${JSON.stringify(error, null, 2)}`),
 				);
 				await delay(2000);
 			}
@@ -1239,58 +1467,64 @@ async function rebalanceTokens(
 	if (shutDown) return;
 	const rebalanceLamports = Math.floor(rebalanceValue);
 	console.log(`Rebalancing Tokens ${selectedTokenA} and ${selectedTokenB}`);
-	try {
-		// Fetch the quote
-		const quoteResponse = await axios.get(
-			`${quoteurl}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rebalanceLamports}&slippageBps=${rebalanceSlippageBPS}`,
-		);
-		//console.log(quoteResponse.data);
+	let maxAttempts = 5;
+	let attempts = 0;
+	while (attempts < maxAttempts) {
+		attempts++;
+		try {
+			// Fetch the quote
+			const quoteResponse = await axios.get(
+				`${quoteurl}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rebalanceLamports}&slippageBps=${rebalanceSlippageBPS}`,
+			);
+			//console.log(quoteResponse.data);
 
-		const swapApiResponse = await fetch(
-			"https://quote-api.jup.ag/v6/swap",
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
+			const swapApiResponse = await fetch(
+				"https://quote-api.jup.ag/v6/swap",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						quoteResponse: quoteResponse.data,
+						userPublicKey: wallet.publicKey,
+						wrapAndUnwrapSol: true,
+					}),
 				},
-				body: JSON.stringify({
-					quoteResponse: quoteResponse.data,
-					userPublicKey: wallet.publicKey,
-					wrapAndUnwrapSol: true,
-				}),
-			},
-		);
+			);
 
-		const { blockhash } = await connection.getLatestBlockhash();
-		const swapData = await swapApiResponse.json();
+			const { blockhash } = await connection.getLatestBlockhash();
+			const swapData = await swapApiResponse.json();
 
-		if (!swapData || !swapData.swapTransaction) {
-			throw new Error("Swap transaction data not found.");
+			if (!swapData || !swapData.swapTransaction) {
+				throw new Error("Swap transaction data not found.");
+			}
+
+			// Deserialize the transaction correctly for a versioned message
+			const swapTransactionBuffer = Buffer.from(
+				swapData.swapTransaction,
+				"base64",
+			);
+			let transaction = VersionedTransaction.deserialize(
+				swapTransactionBuffer,
+			);
+			//console.log(transaction);
+
+			transaction.recentBlockhash = blockhash;
+			transaction.sign([wallet.payer]);
+			// Send it
+			const rawTransaction = transaction.serialize();
+			const txid = await connection.sendRawTransaction(rawTransaction, {
+				skipPreflight: false,
+				preflightCommitment: "processed",
+				maxRetries: 5,
+			});
+			await connection.confirmTransaction(txid, "processed");
+			console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
+			break;
+		} catch (error) {
+			console.error("Error during the transaction:", error);
 		}
-
-		// Deserialize the transaction correctly for a versioned message
-		const swapTransactionBuffer = Buffer.from(
-			swapData.swapTransaction,
-			"base64",
-		);
-		let transaction = VersionedTransaction.deserialize(
-			swapTransactionBuffer,
-		);
-		//console.log(transaction);
-
-		transaction.recentBlockhash = blockhash;
-		transaction.sign([wallet.payer]);
-		// Send it
-		const rawTransaction = transaction.serialize();
-		const txid = await connection.sendRawTransaction(rawTransaction, {
-			skipPreflight: false,
-			preflightCommitment: "processed",
-			maxRetries: 5,
-		});
-		await connection.confirmTransaction(txid, "processed");
-		console.log(`Transaction confirmed: https://solscan.io/tx/${txid}`);
-	} catch (error) {
-		console.error("Error during the transaction:", error);
 	}
 }
 
@@ -1430,43 +1664,69 @@ async function balanceCheck() {
 	tokenARebalanceValue = currentBalances.tokenARebalanceValue;
 	tokenBRebalanceValue = currentBalances.tokenBRebalanceValue;
 
+	
 	//Rebalancing allowed check
-	if (
-		rebalanceAllowed &&
-		(percentageOfA < rebalancePercentage ||
-			percentageOfB < rebalancePercentage)
-	) {
-		let targetUsdBalancePerToken = currUsdTotalBalance / 2;
-		let adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
-		let adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
+	if ( rebalanceAllowed && (percentageOfA < rebalancePercentage || percentageOfB < rebalancePercentage) || infinityMode ) {
+		if (infinityMode) {
+			if (!currUsdTotalBalance > infinityTarget) {
+				console.log(`Your total balance is not high enough for your Infinity Target. Please either increase your wallet balance or reduce your target.`);
+				process.exit(0); // Exit program
+			}
+			let targetUsdBalancePerToken = infinityTarget;
+			if (currUSDBalanceB < targetUsdBalancePerToken) {
+				// Calculate how much more of TokenB we need to reach the target
+				let deficit = (targetUsdBalancePerToken - currUSDBalanceB) * Math.pow(10, selectedDecimalsA);
+			
+				// Calculate how much of TokenA we need to sell to buy the deficit amount of TokenB
+				adjustmentA = -1 * deficit / tokenARebalanceValue;
+			} else if (currUSDBalanceB > targetUsdBalancePerToken) {
+				// Calculate how much we have exceeded the target
+				let surplus = (currUSDBalanceB - targetUsdBalancePerToken) * Math.pow(10, selectedDecimalsB);
+			
+				// Calculate how much of TokenB we need to sell to get rid of the surplus
+				adjustmentB = -1 * (surplus / tokenBRebalanceValue);
+			}
+			//adjustmentA = currBalanceA - targetUsdBalancePerToken;
+			//adjustmentB = targetUsdBalancePerToken - currBalanceB;
+			rebalanceSlippageBPS = 100;
+			console.log("Infinity Mode Enabled");
+		} else {
+			let targetUsdBalancePerToken = currUsdTotalBalance / 2;
+		adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
+		adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
+		}
 
+		//console.log(adjustmentA / Math.pow(10, selectedDecimalsA))
+		//console.log(adjustmentB / Math.pow(10, selectedDecimalsB))		
 		if (adjustmentA < 0) {
 			// Token A's USD balance is above the target, calculate how much Token A to sell
-			let rebalanceValue =
-				(Math.abs(adjustmentA) / tokenARebalanceValue) *
-				Math.pow(10, selectedDecimalsA);
+			let rebalanceValue = adjustmentA;
+			if (!infinityMode) {
+				rebalanceValue = (Math.abs(adjustmentA) / Math.abs(tokenARebalanceValue)) * Math.pow(10, selectedDecimalsA);
+			}
 			console.log(
 				`Need to sell ${chalk.cyan(rebalanceValue / Math.pow(10, selectedDecimalsA))} ${chalk.cyan(selectedTokenA)} to balance.`,
 			);
 			await rebalanceTokens(
 				selectedAddressA,
 				selectedAddressB,
-				rebalanceValue,
+				Math.abs(rebalanceValue),
 				rebalanceSlippageBPS,
 				quoteurl,
 			);
 		} else if (adjustmentB < 0) {
 			// Token B's USD balance is above the target, calculate how much Token B to sell
-			let rebalanceValue =
-				(Math.abs(adjustmentB) / tokenBRebalanceValue) *
-				Math.pow(10, selectedDecimalsB);
+			let rebalanceValue = adjustmentB;
+			if (!infinityMode) {
+				rebalanceValue = (Math.abs(adjustmentB) / Math.abs(tokenBRebalanceValue)) * Math.pow(10, selectedDecimalsB);Can 
+			}
 			console.log(
 				`Need to sell ${chalk.magenta(rebalanceValue / Math.pow(10, selectedDecimalsB))} ${chalk.magenta(selectedTokenB)} to balance.`,
 			);
 			await rebalanceTokens(
 				selectedAddressB,
 				selectedAddressA,
-				rebalanceValue,
+				Math.abs(rebalanceValue),
 				rebalanceSlippageBPS,
 				quoteurl,
 			);
@@ -1487,7 +1747,7 @@ async function balanceCheck() {
 }
 
 process.on("SIGINT", () => {
-	console.clear();
+	//console.clear();
 	console.log("CTRL+C detected! Performing cleanup...");
 	shutDown = true;
 

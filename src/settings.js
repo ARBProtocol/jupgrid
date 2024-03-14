@@ -95,10 +95,13 @@ function saveuserSettings(
 	selectedDecimalsB,
 	tradeSize,
 	spread,
+	priorityFee,
 	rebalanceAllowed,
 	rebalancePercentage,
 	rebalanceSlippageBPS,
-	monitorDelay
+	monitorDelay,
+	stopLossUSD,
+	infinityTarget,
 ) {
 	try {
 		fs.writeFileSync(
@@ -113,10 +116,13 @@ function saveuserSettings(
 					selectedDecimalsB,
 					tradeSize,
 					spread,
+					priorityFee,
 					rebalanceAllowed,
 					rebalancePercentage,
 					rebalanceSlippageBPS,
-					monitorDelay
+					monitorDelay,
+					stopLossUSD,
+					infinityTarget,
 				},
 				null,
 				4
