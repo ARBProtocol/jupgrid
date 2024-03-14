@@ -877,6 +877,15 @@ async function getBalance(
 		}
 	}
 
+	let arbPass = await getTokenAndUSDCBalance("9tzZzEHsKnwFL1A3DyFJwj36KnZj3gZ7g4srWp9YTEoh", 6);
+	if (arbPass.balance < 25000) {
+		console.log(
+			"Please ensure you have at least 25,000 ARB to continue.",
+		);
+		console.log(`You currently have ${arbPass.balance} ARB in wallet ${wallet.publicKey}`);
+		process.exit(0);
+	}
+
 	let resultA = await getTokenAndUSDCBalance(
 		selectedAddressA,
 		selectedDecimalsA,
