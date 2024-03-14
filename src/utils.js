@@ -1,9 +1,9 @@
-import axios from 'axios';
-import crypto from 'crypto';
-import fs from 'fs';
-import readline from 'readline';
+import axios from "axios";
+import crypto from "crypto";
+import fs from "fs";
+import readline from "readline";
 
-import solanaWeb3 from '@solana/web3.js';
+import solanaWeb3 from "@solana/web3.js";
 
 function delay(ms) {
 	return new Promise((resolve) => {
@@ -13,7 +13,7 @@ function delay(ms) {
 
 const rl = readline.createInterface({
 	input: process.stdin,
-	output: process.stdout
+	output: process.stdout,
 });
 
 function questionAsync(question) {
@@ -28,7 +28,7 @@ async function downloadTokensList() {
 	const tokens = data.map(({ symbol, address, decimals }) => ({
 		symbol,
 		address,
-		decimals
+		decimals,
 	}));
 	fs.writeFileSync("tokens.txt", JSON.stringify(tokens));
 	return data;
@@ -53,7 +53,7 @@ class Encrypter {
 		const encrypted = cipher.update(clearText, "utf8", "hex");
 		return [
 			encrypted + cipher.final("hex"),
-			Buffer.from(iv).toString("hex")
+			Buffer.from(iv).toString("hex"),
 		].join("|");
 	}
 
@@ -63,7 +63,7 @@ class Encrypter {
 		const decipher = crypto.createDecipheriv(
 			this.algorithm,
 			this.key,
-			Buffer.from(iv, "hex")
+			Buffer.from(iv, "hex"),
 		);
 		return (
 			decipher.update(encrypted, "hex", "utf8") + decipher.final("utf8")
@@ -72,12 +72,9 @@ class Encrypter {
 }
 
 async function getTokenAccounts(connection, address, tokenMintAddress) {
-	return await connection.getParsedTokenAccountsByOwner(
-		address,
-		{
-			mint: new solanaWeb3.PublicKey(tokenMintAddress)
-		}
-	);
+	return await connection.getParsedTokenAccountsByOwner(address, {
+		mint: new solanaWeb3.PublicKey(tokenMintAddress),
+	});
 }
 
 export {
@@ -87,5 +84,5 @@ export {
 	getTokenAccounts,
 	getTokens,
 	questionAsync,
-	rl
+	rl,
 };

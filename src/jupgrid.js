@@ -10,7 +10,6 @@ import {
 } from '@jup-ag/limit-order-sdk';
 import * as solanaWeb3 from '@solana/web3.js';
 
-import packageInfo from '../package.json' assert { type: 'json' };
 import {
 	envload,
 	loaduserSettings,
@@ -25,11 +24,14 @@ import {
 	rl
 } from './utils.js';
 
+// use fs to to read version from package.json
+const packageInfo = JSON.parse(fs.readFileSync("package.json", "utf8"));
+
 const { Connection, Keypair, VersionedTransaction } = solanaWeb3;
 
 const version = packageInfo.version;
 
-let [wallet, rpcUrl] = envload();
+const [wallet, rpcUrl] = envload();
 
 const connection = new Connection(rpcUrl, "processed", {
 	confirmTransactionInitialTimeout: 5000,
@@ -53,7 +55,7 @@ let {
 	tradeSize = null,
 	tradeSizeInLamports = null,
 	validSpread = null,
-	stopLossUSD=  null,
+	stopLossUSD = null,
 	infinityTarget = null,
 	loaded = false,
 	openOrders = [],
@@ -161,11 +163,9 @@ async function loadQuestion() {
 								console.log(
 									`Order Size (in ${userSettings.selectedTokenA}): ${userSettings.tradeSize}`,
 								);
+								console.log(`Spread: ${userSettings.spread}`);
 								console.log(
-									`Spread: ${userSettings.spread}`
-								);
-								console.log(
-									`Priority Fee: ${userSettings.priorityFee}`
+									`Priority Fee: ${userSettings.priorityFee}`,
 								);
 								//console.log(
 								//	`Stop Loss: ${userSettings.stopLossUSD}`
@@ -183,7 +183,7 @@ async function loadQuestion() {
 									console.log(
 										`Rebalance Swap Slippage: ${userSettings.rebalanceSlippageBPS / 100}%`,
 									);
-								}								
+								}
 
 								// Prompt for confirmation to use these settings
 								rl.question(
@@ -646,7 +646,7 @@ async function initialize() {
 
 			newPrice = response.data.outAmount;
 			startPrice = response.data.outAmount;
-			const layers = generatePriceLayers(startPrice, spreadbps, 500)
+			const layers = generatePriceLayers(startPrice, spreadbps, 500);
 			//Calc first price layers
 			buyInput = tradeSizeInLamports;
 
@@ -680,13 +680,12 @@ async function initialize() {
 			//	console.log("Starting Grid Mode");
 			startGrid();
 			//} else {
-				//console.log("Infinity Mode is currently disabled. Please check back later.")
-				//process.exit(0);
-				
+			//console.log("Infinity Mode is currently disabled. Please check back later.")
+			//process.exit(0);
+
 			//	console.log("Starting Infinity Mode");
 			//	startInfinity();
 			//}
-
 		} catch (error) {
 			console.error("Error: Connection or Token Data Error");
 			console.error("Error:", error);
@@ -701,7 +700,7 @@ if (loaded === false) {
 	loadQuestion();
 }
 
-async function startGrid () {
+async function startGrid() {
 	let initialBalances = await getBalance(
 		wallet,
 		selectedAddressA,
@@ -743,38 +742,42 @@ async function startInfinity() {
 }
 
 function generatePriceLayers(newPrice, spreadbps, totalLayers) {
-    const layers = {};
-    const adjustment = newPrice * spreadbps / 10000; // Fixed adjustment value
+	const layers = {};
+	const adjustment = (newPrice * spreadbps) / 10000; // Fixed adjustment value
 
-    for (let i = 1; i <= totalLayers; i++) {
-        const upperLayerPrice = Math.trunc(Number(newPrice) - adjustment * i);
-        const lowerLayerPrice = Math.trunc(Number(newPrice) + adjustment * i);
+	for (let i = 1; i <= totalLayers; i++) {
+		const upperLayerPrice = Math.trunc(Number(newPrice) - adjustment * i);
+		const lowerLayerPrice = Math.trunc(Number(newPrice) + adjustment * i);
 
-        // Only add the layer if the price is not negative
-        if (upperLayerPrice >= 0) {
-            layers[i] = upperLayerPrice;
-        }
-        if (lowerLayerPrice >= 0) {
-            layers[-i] = lowerLayerPrice;
-        }
-    }
-    layers[0] = Number(newPrice);
+		// Only add the layer if the price is not negative
+		if (upperLayerPrice >= 0) {
+			layers[i] = upperLayerPrice;
+		}
+		if (lowerLayerPrice >= 0) {
+			layers[-i] = lowerLayerPrice;
+		}
+	}
+	layers[0] = Number(newPrice);
 
-    // Convert the layers object to an array of [key, value] pairs
-    const layersArray = Object.entries(layers);
+	// Convert the layers object to an array of [key, value] pairs
+	const layersArray = Object.entries(layers);
 
-    // Sort the array in descending order by key (layer number)
-    layersArray.sort((a, b) => Number(b[0]) - Number(a[0]));
+	// Sort the array in descending order by key (layer number)
+	layersArray.sort((a, b) => Number(b[0]) - Number(a[0]));
 
-    // Convert the sorted array back to an object
-    const localSortedLayers = Object.fromEntries(layersArray);
+	// Convert the sorted array back to an object
+	const localSortedLayers = Object.fromEntries(layersArray);
 
-    fs.writeFileSync('userPriceLayers.json', JSON.stringify(localSortedLayers, null, 2), 'utf8');
+	fs.writeFileSync(
+		"userPriceLayers.json",
+		JSON.stringify(localSortedLayers, null, 2),
+		"utf8",
+	);
 
-    // Assign localSortedLayers to the global variable
-    sortedLayers = localSortedLayers;
+	// Assign localSortedLayers to the global variable
+	sortedLayers = localSortedLayers;
 
-    return localSortedLayers;
+	return localSortedLayers;
 }
 
 async function getBalance(
@@ -925,7 +928,13 @@ function formatElapsedTime(startTime) {
 async function infinityGrid() {
 	//await balanceCheck()
 	process.exit(0);
-	let currentBalances = await getBalance(wallet, selectedAddressA, selectedAddressB, selectedTokenA, selectedTokenB);
+	let currentBalances = await getBalance(
+		wallet,
+		selectedAddressA,
+		selectedAddressB,
+		selectedTokenA,
+		selectedTokenB,
+	);
 	currBalanceA = currentBalances.balanceA; // Current balance of token A
 	currBalanceB = currentBalances.balanceB; // Current balance of token B
 	currUSDBalanceA = currentBalances.usdBalanceA; // Current USD balance of token A
@@ -934,42 +943,39 @@ async function infinityGrid() {
 	let tokenBPrice = currUSDBalanceB / currBalanceB; // Current price of token B
 	let tokenAPrice = currUSDBalanceA / currBalanceA; // Current price of token A
 
-if (currUsdTotalBalance < stopLossUSD) {
-	//Emergency Stop Loss
-	console.log(`\n\u{1F6A8} Emergency Stop Loss Triggered! - Cashing out and Exiting`);
+	if (currUsdTotalBalance < stopLossUSD) {
+		//Emergency Stop Loss
+		console.log(
+			`\n\u{1F6A8} Emergency Stop Loss Triggered! - Cashing out and Exiting`,
+		);
+	}
+	// Calculate the new prices of tokenB when it's up 1% and down 1%
+	let newPriceBUp = tokenBPrice * 1.05; // 1% increase
+	let newPriceBDown = tokenBPrice * 0.95; // 1% decrease
 
-}
-// Calculate the new prices of tokenB when it's up 1% and down 1%
-let newPriceBUp = tokenBPrice * 1.05; // 1% increase
-let newPriceBDown = tokenBPrice * 0.95; // 1% decrease
+	let marketUpIn = (currUSDBalanceB - infinityTarget) / newPriceBUp; // Amount of tokenB to buy to maintain the target USD value
+	let marketUpOut = marketUpIn * newPriceBUp;
+	let marketUpCalc = marketUpOut / marketUpIn;
 
-let marketUpIn = (currUSDBalanceB - infinityTarget) / newPriceBUp; // Amount of tokenB to buy to maintain the target USD value
-let marketUpOut = marketUpIn * newPriceBUp ;
-let marketUpCalc = marketUpOut / marketUpIn;
+	console.log("Current Market Price: ", tokenBPrice);
+	console.log(`Infinity Target: ${infinityTarget}`);
 
-console.log("Current Market Price: ", tokenBPrice);
-console.log(`Infinity Target: ${infinityTarget}`);
+	console.log(`\n${selectedTokenB} up 1%: ${newPriceBUp}`);
+	console.log("Amount of B to send: ", marketUpIn);
+	console.log("Amount of A to receive: ", marketUpOut);
+	console.log("Calculated Market Price: ", marketUpCalc);
 
-console.log(`\n${selectedTokenB} up 1%: ${newPriceBUp}`);
-console.log("Amount of B to send: ", marketUpIn);
-console.log("Amount of A to receive: ", marketUpOut);
-console.log("Calculated Market Price: ", marketUpCalc);
+	// Calculate the amount of tokenB to buy to maintain the target USD value
+	let marketDownOut = (infinityTarget - currUSDBalanceB) / newPriceBDown;
+	let marketDownIn = marketDownOut * newPriceBDown;
+	let marketDownCalc = marketDownIn / marketDownOut;
 
-// Calculate the amount of tokenB to buy to maintain the target USD value
-let marketDownOut = (infinityTarget - currUSDBalanceB) / newPriceBDown
-let marketDownIn = marketDownOut * newPriceBDown;
-let marketDownCalc = marketDownIn / marketDownOut;
+	console.log(`\n${selectedTokenB} down 1%: ${newPriceBDown}`);
+	console.log("Amount of B to recieve: ", marketDownOut);
+	console.log("Amount of A to send: ", marketDownIn);
+	console.log("Calculated Market Price: ", marketDownCalc);
 
-console.log(`\n${selectedTokenB} down 1%: ${newPriceBDown}`);
-console.log("Amount of B to recieve: ", marketDownOut);
-console.log("Amount of A to send: ", marketDownIn);
-console.log("Calculated Market Price: ", marketDownCalc);
-
-
-
-
-
-/*
+	/*
 //Buy layer
 sendTx(
 	Math.floor(marketDownIn * Math.pow(10, selectedDecimalsA)),
@@ -988,7 +994,6 @@ sendTx(
 );
 */
 }
-
 
 async function monitorPrice(
 	selectedAddressA,
@@ -1019,9 +1024,10 @@ async function monitorPrice(
 				const newPrice = response.data.outAmount;
 
 				if (checkArray.length === 0) {
-					console.log("No orders found. Resetting and placing orders at last known layers.");
+					console.log(
+						"No orders found. Resetting and placing orders at last known layers.",
+					);
 					await setOrders();
-
 				} else if (checkArray.length === 1) {
 					// Identify which key(s) are missing
 					if (!checkArray.includes(buyKey)) {
@@ -1079,18 +1085,12 @@ async function monitorPrice(
 							missingKeys[0] +
 							". Resetting price points and placing new orders.",
 					);
-					await recalculateLayers(
-						tradeSizeInLamports,
-						sortedLayers
-					);
+					await recalculateLayers(tradeSizeInLamports, sortedLayers);
 				} else if (checkArray.length > 2) {
 					console.log(
 						"Excessive orders found, identifying valid orders and resetting.",
 					);
-					await recalculateLayers(
-						tradeSizeInLamports,
-						sortedLayers
-					);
+					await recalculateLayers(tradeSizeInLamports, sortedLayers);
 					// Here, you'd identify which orders are valid, potentially adjusting remainingKeys accordingly
 				}
 			} else {
@@ -1106,7 +1106,7 @@ async function monitorPrice(
 
 			break; // Break the loop if we've successfully handled the price monitoring
 		} catch (error) {
-			console.log(error)
+			console.log(error);
 			console.error(
 				`Error: Connection or Token Data Error (Monitor Price) - (Attempt ${retries + 1} of ${maxRetries})`,
 			);
@@ -1138,7 +1138,7 @@ async function updateUSDVal(mintAddress, balance, decimals) {
 		const usdBalance = response.data.outAmount / Math.pow(10, 6);
 		return usdBalance;
 	} catch (error) {
-		// Error is not critical. 
+		// Error is not critical.
 		// Reuse the previous balances and try another update again next cycle.
 	}
 }
@@ -1210,32 +1210,42 @@ async function updateMainDisplay() {
 }
 
 async function recalculateLayers(tradeSizeInLamports, layers) {
-    console.log("\u{1F504} Calculating new price layers");
-    buyInput = tradeSizeInLamports;
-    sellOutput = tradeSizeInLamports;
+	console.log("\u{1F504} Calculating new price layers");
+	buyInput = tradeSizeInLamports;
+	sellOutput = tradeSizeInLamports;
 
-    let currentBuyLayer = Object.keys(layers).find(key => layers[key] === sellInput);
-    let currentSellLayer = Object.keys(layers).find(key => layers[key] === buyOutput);
+	let currentBuyLayer = Object.keys(layers).find(
+		(key) => layers[key] === sellInput,
+	);
+	let currentSellLayer = Object.keys(layers).find(
+		(key) => layers[key] === buyOutput,
+	);
 
-    if (lastFilledOrder === 'buy') {
-        // Price went down, move both orders down
-        currentBuyLayer = Number(currentBuyLayer) - 1;
-        currentSellLayer = Number(currentSellLayer) - 1;
-        console.log(`Last filled order was a buy. Moving down to layer ${currentBuyLayer} for buy order and layer ${currentSellLayer} for sell order.`);
-    } else if (lastFilledOrder === 'sell') {
-        // Price went up, move both orders up
-        currentBuyLayer = Number(currentBuyLayer) + 1;
-        currentSellLayer = Number(currentSellLayer) + 1;
-        console.log(`Last filled order was a sell. Moving up to layer ${currentBuyLayer} for buy order and layer ${currentSellLayer} for sell order.`);
-    } else {
-        console.log(`No order has been filled yet. Setting buy order to layer ${currentBuyLayer} and sell order to layer ${currentSellLayer}.`);
-    }
+	if (lastFilledOrder === "buy") {
+		// Price went down, move both orders down
+		currentBuyLayer = Number(currentBuyLayer) - 1;
+		currentSellLayer = Number(currentSellLayer) - 1;
+		console.log(
+			`Last filled order was a buy. Moving down to layer ${currentBuyLayer} for buy order and layer ${currentSellLayer} for sell order.`,
+		);
+	} else if (lastFilledOrder === "sell") {
+		// Price went up, move both orders up
+		currentBuyLayer = Number(currentBuyLayer) + 1;
+		currentSellLayer = Number(currentSellLayer) + 1;
+		console.log(
+			`Last filled order was a sell. Moving up to layer ${currentBuyLayer} for buy order and layer ${currentSellLayer} for sell order.`,
+		);
+	} else {
+		console.log(
+			`No order has been filled yet. Setting buy order to layer ${currentBuyLayer} and sell order to layer ${currentSellLayer}.`,
+		);
+	}
 
-    sellInput = layers[currentBuyLayer];
-    buyOutput = layers[currentSellLayer];
+	sellInput = layers[currentBuyLayer];
+	buyOutput = layers[currentSellLayer];
 
-    await cancelOrder(checkArray, wallet);
-    recalcs++;
+	await cancelOrder(checkArray, wallet);
+	recalcs++;
 }
 
 async function sendTransactionAsync(
@@ -1328,28 +1338,45 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 	const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 	let attempt = 0;
-	
+
 	let blockHeightErrorOccurred = false; // This flag resets with each function call
 
 	while (attempt < maxRetries) {
 		attempt++;
 		try {
 			let PRIORITY_RATE = priorityFee * attempt;
-			let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
+			let PRIORITY_FEE_IX =
+				solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({
+					microLamports: PRIORITY_RATE,
+				});
 			const tokenAccounts = await getTokenAccounts(
 				connection,
 				wallet.publicKey,
-				new solanaWeb3.PublicKey("9tzZzEHsKnwFL1A3DyFJwj36KnZj3gZ7g4srWp9YTEoh"),
+				new solanaWeb3.PublicKey(
+					"9tzZzEHsKnwFL1A3DyFJwj36KnZj3gZ7g4srWp9YTEoh",
+				),
 			);
 			if (tokenAccounts.value.length === 0) {
-				console.log("No ARB token accounts found. Please purchase at least 25k ARB and try again.");
+				console.log(
+					"No ARB token accounts found. Please purchase at least 25k ARB and try again.",
+				);
 				process.exit(0);
 			}
 			let CHECK_IX = new solanaWeb3.TransactionInstruction({
-				programId: new solanaWeb3.PublicKey("ARbCUfqDPeasSXWXD7mr7APHibguMg7oFMJUu1RNzprG"),
+				programId: new solanaWeb3.PublicKey(
+					"ARbCUfqDPeasSXWXD7mr7APHibguMg7oFMJUu1RNzprG",
+				),
 				keys: [
-					{ pubkey: wallet.publicKey, isSigner: true, isWritable: false },
-					{ pubkey: tokenAccounts.value[0].pubkey, isSigner: false, isWritable: false },
+					{
+						pubkey: wallet.publicKey,
+						isSigner: true,
+						isWritable: false,
+					},
+					{
+						pubkey: tokenAccounts.value[0].pubkey,
+						isSigner: false,
+						isWritable: false,
+					},
 				],
 				data: Buffer.from([230, 144, 187, 66, 156, 221, 77, 41]),
 			});
@@ -1367,7 +1394,8 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 						outputMint: outputMint.toString(),
 						expiredAt: null,
 						base: base.publicKey.toString(),
-						referralAccount: "7WGULgEo4Veqj6sCvA3VNxGgBf3EXJd8sW2XniBda3bJ",
+						referralAccount:
+							"7WGULgEo4Veqj6sCvA3VNxGgBf3EXJd8sW2XniBda3bJ",
 						referralName: "Jupiter GridBot",
 					}),
 				},
@@ -1446,7 +1474,9 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 				// Handle all other errors
 				spinner.fail(
 					//`Attempt ${attempt} - Error in transaction: ${error.message}`,
-					spinner.fail(`Attempt ${attempt} - Error in transaction: ${error.message}, Full error: ${JSON.stringify(error, null, 2)}`),
+					spinner.fail(
+						`Attempt ${attempt} - Error in transaction: ${error.message}, Full error: ${JSON.stringify(error, null, 2)}`,
+					),
 				);
 				await delay(2000);
 			}
@@ -1556,7 +1586,10 @@ async function cancelOrder(checkArray) {
 	while (attempt <= maxRetries) {
 		try {
 			let PRIORITY_RATE = 100 * attempt;
-			let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
+			let PRIORITY_FEE_IX =
+				solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({
+					microLamports: PRIORITY_RATE,
+				});
 			openOrders.length = 0;
 			checkArray.length = 0;
 
@@ -1664,25 +1697,35 @@ async function balanceCheck() {
 	tokenARebalanceValue = currentBalances.tokenARebalanceValue;
 	tokenBRebalanceValue = currentBalances.tokenBRebalanceValue;
 
-	
 	//Rebalancing allowed check
-	if ( rebalanceAllowed && (percentageOfA < rebalancePercentage || percentageOfB < rebalancePercentage) || infinityMode ) {
+	if (
+		(rebalanceAllowed &&
+			(percentageOfA < rebalancePercentage ||
+				percentageOfB < rebalancePercentage)) ||
+		infinityMode
+	) {
 		if (infinityMode) {
 			if (!currUsdTotalBalance > infinityTarget) {
-				console.log(`Your total balance is not high enough for your Infinity Target. Please either increase your wallet balance or reduce your target.`);
+				console.log(
+					`Your total balance is not high enough for your Infinity Target. Please either increase your wallet balance or reduce your target.`,
+				);
 				process.exit(0); // Exit program
 			}
 			let targetUsdBalancePerToken = infinityTarget;
 			if (currUSDBalanceB < targetUsdBalancePerToken) {
 				// Calculate how much more of TokenB we need to reach the target
-				let deficit = (targetUsdBalancePerToken - currUSDBalanceB) * Math.pow(10, selectedDecimalsA);
-			
+				let deficit =
+					(targetUsdBalancePerToken - currUSDBalanceB) *
+					Math.pow(10, selectedDecimalsA);
+
 				// Calculate how much of TokenA we need to sell to buy the deficit amount of TokenB
-				adjustmentA = -1 * deficit / tokenARebalanceValue;
+				adjustmentA = (-1 * deficit) / tokenARebalanceValue;
 			} else if (currUSDBalanceB > targetUsdBalancePerToken) {
 				// Calculate how much we have exceeded the target
-				let surplus = (currUSDBalanceB - targetUsdBalancePerToken) * Math.pow(10, selectedDecimalsB);
-			
+				let surplus =
+					(currUSDBalanceB - targetUsdBalancePerToken) *
+					Math.pow(10, selectedDecimalsB);
+
 				// Calculate how much of TokenB we need to sell to get rid of the surplus
 				adjustmentB = -1 * (surplus / tokenBRebalanceValue);
 			}
@@ -1692,17 +1735,19 @@ async function balanceCheck() {
 			console.log("Infinity Mode Enabled");
 		} else {
 			let targetUsdBalancePerToken = currUsdTotalBalance / 2;
-		adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
-		adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
+			adjustmentA = targetUsdBalancePerToken - currUSDBalanceA;
+			adjustmentB = targetUsdBalancePerToken - currUSDBalanceB;
 		}
 
 		//console.log(adjustmentA / Math.pow(10, selectedDecimalsA))
-		//console.log(adjustmentB / Math.pow(10, selectedDecimalsB))		
+		//console.log(adjustmentB / Math.pow(10, selectedDecimalsB))
 		if (adjustmentA < 0) {
 			// Token A's USD balance is above the target, calculate how much Token A to sell
 			let rebalanceValue = adjustmentA;
 			if (!infinityMode) {
-				rebalanceValue = (Math.abs(adjustmentA) / Math.abs(tokenARebalanceValue)) * Math.pow(10, selectedDecimalsA);
+				rebalanceValue =
+					(Math.abs(adjustmentA) / Math.abs(tokenARebalanceValue)) *
+					Math.pow(10, selectedDecimalsA);
 			}
 			console.log(
 				`Need to sell ${chalk.cyan(rebalanceValue / Math.pow(10, selectedDecimalsA))} ${chalk.cyan(selectedTokenA)} to balance.`,
@@ -1718,7 +1763,10 @@ async function balanceCheck() {
 			// Token B's USD balance is above the target, calculate how much Token B to sell
 			let rebalanceValue = adjustmentB;
 			if (!infinityMode) {
-				rebalanceValue = (Math.abs(adjustmentB) / Math.abs(tokenBRebalanceValue)) * Math.pow(10, selectedDecimalsB);Can 
+				rebalanceValue =
+					(Math.abs(adjustmentB) / Math.abs(tokenBRebalanceValue)) *
+					Math.pow(10, selectedDecimalsB);
+				Can;
 			}
 			console.log(
 				`Need to sell ${chalk.magenta(rebalanceValue / Math.pow(10, selectedDecimalsB))} ${chalk.magenta(selectedTokenB)} to balance.`,
@@ -1758,7 +1806,7 @@ process.on("SIGINT", () => {
 		).start();
 
 		// Retry parameters
-		
+
 		const maxRetries = 30; // Maximum number of retries
 		const cpause = (ms) =>
 			new Promise((resolve) => setTimeout(resolve, ms));
@@ -1780,7 +1828,10 @@ process.on("SIGINT", () => {
 					// Update spinner text instead of using console.log
 					spinner.text = "Please Wait";
 					let PRIORITY_RATE = 100 * attempt;
-					let PRIORITY_FEE_IX = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({microLamports: PRIORITY_RATE})
+					let PRIORITY_FEE_IX =
+						solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({
+							microLamports: PRIORITY_RATE,
+						});
 					const requestData = {
 						owner: wallet.publicKey.toString(),
 						feePayer: wallet.publicKey.toString(),
@@ -1813,7 +1864,7 @@ process.on("SIGINT", () => {
 					const transaction =
 						solanaWeb3.Transaction.from(transactionBuf);
 					const signers = [wallet.payer];
-						transaction.add(PRIORITY_FEE_IX);
+					transaction.add(PRIORITY_FEE_IX);
 					const txid = await solanaWeb3.sendAndConfirmTransaction(
 						connection,
 						transaction,
