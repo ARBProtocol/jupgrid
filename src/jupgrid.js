@@ -33,6 +33,9 @@ const limitOrder = new LimitOrderProvider(connection);
 
 let shutDown = false;
 
+let walletAddress = wallet.publicKey.toString();
+let displayAddress = `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
+
 const quoteurl = "https://quote-api.jup.ag/v6/quote";
 
 let {
@@ -113,6 +116,7 @@ let {
 	adjustmentA = 0,
 	adjustmentB = 0,
 	infinityInit = true,
+	stopLoss = false,
 	userSettings = {
 		selectedTokenA: null,
 		selectedTokenB: null,
@@ -125,6 +129,7 @@ let {
 		monitorDelay: null,
 		stopLossUSD: null,
 		infinityTarget: null,
+		infinityMode: null,
 	},
 } = {};
 
@@ -132,6 +137,7 @@ async function loadQuestion() {
 	try {
 		await downloadTokensList();
 		console.log("Updated Token List\n");
+		console.log(`Connected Wallet: ${displayAddress}\n`);
 
 		if (!fs.existsSync("userSettings.json")) {
 			console.log("No user data found. Starting with fresh inputs.");
@@ -146,8 +152,33 @@ async function loadQuestion() {
 						if (responseQ === "Y") {
 							try {
 								// Show user data
-								const userSettings = loaduserSettings();
+								const userSettings = loaduserSettings();								
 								console.log("User data loaded successfully.");
+								//Infinity Mode Check
+								if (userSettings.infinityMode) {
+									console.log(
+										`Infinity Mode Enabled.`,
+									);
+									console.log(
+										`Infinity Target: ${userSettings.infinityTarget}`,
+									);
+									console.log(
+										`Token A: ${userSettings.selectedTokenA}`,
+									);
+									console.log(
+										`Token B: ${userSettings.selectedTokenB}`,
+									);
+									console.log(
+										`Priority Fee: ${userSettings.priorityFee}`,
+									);
+									console.log(
+										`Stop Loss: ${userSettings.stopLossUSD}`
+									);
+									console.log(
+										`Monitoring delay: ${userSettings.monitorDelay}ms`,
+									);	
+								} else {
+									console.log(`Classic Grid Mode Enabled`)
 								console.log(
 									`Token A: ${userSettings.selectedTokenA}`,
 								);
@@ -161,9 +192,9 @@ async function loadQuestion() {
 								console.log(
 									`Priority Fee: ${userSettings.priorityFee}`,
 								);
-								//console.log(
-								//	`Stop Loss: ${userSettings.stopLossUSD}`
-								//);
+								console.log(
+									`Stop Loss: ${userSettings.stopLossUSD}`
+								);
 								console.log(
 									`Monitoring delay: ${userSettings.monitorDelay}ms`,
 								);
@@ -178,7 +209,7 @@ async function loadQuestion() {
 										`Rebalance Swap Slippage: ${userSettings.rebalanceSlippageBPS / 100}%`,
 									);
 								}
-
+							}
 								// Prompt for confirmation to use these settings
 								rl.question(
 									"Proceed with these settings? (Y/N): ",
@@ -203,6 +234,7 @@ async function loadQuestion() {
 												monitorDelay,
 												stopLossUSD,
 												infinityTarget,
+												infinityMode,
 											} = userSettings);
 											console.log(
 												"Settings applied successfully!",
@@ -249,7 +281,6 @@ async function loadQuestion() {
 }
 
 async function initialize() {
-	try {
 		if (selectedTokenA != null) {
 			validTokenA = true;
 		}
@@ -355,7 +386,7 @@ async function initialize() {
 				validTokenB = true;
 			}
 		}
-
+		
 		while (!validTokenB) {
 			const answer = await questionAsync(
 				`Please Enter The Second Token Symbol (B) (Case Sensitive): `,
@@ -382,120 +413,12 @@ async function initialize() {
 				console.log(`Token ${answer} not found. Please Try Again.`);
 			}
 		}
-		const selectedTradeToken = "a";
 
-		// Check if trade size is valid
-		if (userSettings.tradeSize) {
-			validTradeSize = !isNaN(parseFloat(userSettings.tradeSize));
-			if (!validTradeSize) {
-				console.log(
-					"Invalid trade size found in user data. Please re-enter.",
-				);
-				userSettings.tradeSize = null; // Reset trade size
-			} else validTradeSize = true;
-		}
-
-		// If trade size is not valid, prompt the user
-		while (!validTradeSize) {
-			const tradeSizeInput = await questionAsync(
-				`Please Enter the Trade Size: `,
-			);
-			tradeSize = parseFloat(tradeSizeInput);
-			if (!isNaN(tradeSize)) {
-				userSettings.tradeSize = tradeSize;
-				validTradeSize = true;
-			} else {
-				console.log("Invalid trade size. Please enter a valid number.");
-			}
-		}
-
-		// Ask user for spread %
-		// Check if spread percentage is valid
-		if (userSettings.spread) {
-			validSpread = !isNaN(parseFloat(userSettings.spread));
-			if (!validSpread) {
-				console.log(
-					"Invalid spread percentage found in user data. Please re-enter.",
-				);
-				userSettings.spread = null; // Reset spread percentage
-			} else validSpread = true;
-		}
-
-		// If spread percentage is not valid, prompt the user
-		while (!validSpread) {
-			const spreadInput = await questionAsync(
-				"What % Spread Difference Between Market and Orders? Recommend >0.3% to cover Jupiter Fees:",
-			);
-			spread = parseFloat(spreadInput);
-			if (!isNaN(spread)) {
-				userSettings.spread = spread;
-				validSpread = true;
-			} else {
-				console.log(
-					"Invalid spread percentage. Please enter a valid number (No % Symbol).",
-				);
-			}
-		}
-
-		if (userSettings.priorityFee) {
-			priorityFee = !isNaN(parseFloat(userSettings.priorityFee));
-			if (!validPriorityFee) {
-				console.log(
-					"Invalid priority fee found in user data. Please re-enter.",
-				);
-				userSettings.priorityFee = null; // Reset spread percentage
-			} else validPriorityFee = true;
-		}
-
-		// If spread percentage is not valid, prompt the user
-		while (!validPriorityFee) {
-			const priorityFeeInput = await questionAsync(
-				"What Priority Fee do you want to use? (Micro Lamports - 1000 = 0.000001000 SOL: ",
-			);
-			priorityFee = parseFloat(priorityFeeInput);
-			if (!isNaN(priorityFee)) {
-				userSettings.priorityFee = priorityFee;
-				validPriorityFee = true;
-			} else {
-				console.log(
-					"Invalid Priority Fee. Please enter a valid number.",
-				);
-			}
-		}
-
-		/*
-		if (userSettings.stopLossUSD) {
-			validStopLossUSD = !isNaN(parseFloat(userSettings.stopLossUSD));
-			if (!validStopLossUSD) {
-				console.log(
-					"Invalid stop loss value found in user data. Please re-enter.",
-				);
-				userSettings.stopLossUSD = null; // Reset stop loss value
-			} else validStopLossUSD = true;
-		}
-		
-		
-		// If stop loss value is not valid, prompt the user
-		while (!validStopLossUSD) {
-			const stopLossUSDInput = await questionAsync(
-				`Please Enter the Stop Loss Value in USD: `,
-			);
-			stopLossUSD = parseFloat(stopLossUSDInput);
-			if (!isNaN(stopLossUSD)) {
-				userSettings.stopLossUSD = stopLossUSD;
-				validStopLossUSD = true;
-			} else {
-				console.log("Invalid stop loss value. Please enter a valid number.");
-			}
-		}
-		*/
-
-		// Ask the user if they want to enable Infinity Mode
 		const infinityModeInput = await questionAsync(
 			`Would you like Infinity Mode? (Y/N): `,
 		);
 		infinityMode = infinityModeInput.toLowerCase() === "y";
-
+		
 		if (infinityMode) {
 			if (userSettings.infinityTarget) {
 				validInfinityTarget = !isNaN(
@@ -508,7 +431,7 @@ async function initialize() {
 					userSettings.infinityTarget = null; // Reset infinity target value
 				} else validInfinityTarget = true;
 			}
-
+		
 			// If infinity target value is not valid, prompt the user
 			while (!validInfinityTarget) {
 				const infinityTargetInput = await questionAsync(
@@ -530,14 +453,68 @@ async function initialize() {
 			}
 		}
 
-		while (rebalanceAllowed === null) {
+		// Check if trade size is valid
+		if (userSettings.tradeSize) {
+			validTradeSize = !isNaN(parseFloat(userSettings.tradeSize));
+			if (!validTradeSize) {
+				console.log(
+					"Invalid trade size found in user data. Please re-enter.",
+				);
+				userSettings.tradeSize = null; // Reset trade size
+			} else validTradeSize = true;
+		}
+
+		// If trade size is not valid, prompt the user
+		while (!validTradeSize && !infinityMode) {
+			const tradeSizeInput = await questionAsync(
+				`Please Enter the Trade Size: `,
+			);
+			tradeSize = parseFloat(tradeSizeInput);
+			if (!isNaN(tradeSize)) {
+				userSettings.tradeSize = tradeSize;
+				//userSettings.tradeSizeInLamports = tradeSize * Math.pow(10, selectedDecimalsA);
+				validTradeSize = true;
+			} else {
+				console.log("Invalid trade size. Please enter a valid number.");
+			}
+		}
+
+		// Ask user for spread %
+		// Check if spread percentage is valid
+		if (userSettings.spread) {
+			validSpread = !isNaN(parseFloat(userSettings.spread));
+			if (!validSpread) {
+				console.log(
+					"Invalid spread percentage found in user data. Please re-enter.",
+				);
+				userSettings.spread = null; // Reset spread percentage
+			} else validSpread = true;
+		}
+
+		// If spread percentage is not valid, prompt the user
+		while (!validSpread && !infinityMode) {
+			const spreadInput = await questionAsync(
+				"What % Spread Difference Between Market and Orders? Recommend >0.3% to cover Jupiter Fees, but >1% for better performance:",
+			);
+			spread = parseFloat(spreadInput);
+			if (!isNaN(spread)) {
+				userSettings.spread = spread;
+				validSpread = true;
+			} else {
+				console.log(
+					"Invalid spread percentage. Please enter a valid number (No % Symbol).",
+				);
+			}
+		}
+
+		while (rebalanceAllowed === null  && !infinityMode) {
 			const rebalanceQuestion = await questionAsync(
 				"Do you want to allow rebalancing of Tokens (Currently Experimental)? (Y/N): ",
 			);
-
+		
 			if (rebalanceQuestion.trim().toUpperCase() === "Y") {
 				rebalanceAllowed = true;
-
+		
 				const percentageQuestion = await questionAsync(
 					"At what balance percentage do you want to rebalance your lower balance token? (Enter a number between 1 and 100): ",
 				);
@@ -554,14 +531,14 @@ async function initialize() {
 					);
 					continue; // Ask the rebalance percentage question again
 				}
-
+		
 				// Loop for maximum allowed slippage question until a valid answer is given or default is accepted
 				let isValidSlippage = false;
 				while (!isValidSlippage) {
 					const slippageQuestion = await questionAsync(
 						`What is the maximum allowed slippage for the rebalance transaction? (Enter a number between 0.1 and 100, representing percentage, default 0.3%): `,
 					);
-
+		
 					let parsedSlippage;
 					if (slippageQuestion.trim() === "") {
 						// User accepted the default value
@@ -583,7 +560,7 @@ async function initialize() {
 							);
 						}
 					}
-
+		
 					if (isValidSlippage) {
 						rebalanceSlippageBPS = parsedSlippage * 100;
 					}
@@ -599,7 +576,56 @@ async function initialize() {
 			}
 		}
 
-		// ask for monitor delay
+		if (userSettings.stopLossUSD) {
+			validStopLossUSD = !isNaN(parseFloat(userSettings.stopLossUSD));
+			if (!validStopLossUSD) {
+				console.log(
+					"Invalid stop loss value found in user data. Please re-enter.",
+				);
+				userSettings.stopLossUSD = null; // Reset stop loss value
+			} else validStopLossUSD = true;
+		}
+		
+		// If stop loss value is not valid, prompt the user
+		while (!validStopLossUSD) {
+			const stopLossUSDInput = await questionAsync(
+				`Please Enter the Stop Loss Value in USD: (Enter 0 for no stoploss) `,
+			);
+			stopLossUSD = parseFloat(stopLossUSDInput);
+			if (!isNaN(stopLossUSD)) {
+				userSettings.stopLossUSD = stopLossUSD;
+				validStopLossUSD = true;
+			} else {
+				console.log("Invalid stop loss value. Please enter a valid number.");
+			}
+		}
+
+		if (userSettings.priorityFee) {
+			priorityFee = !isNaN(parseFloat(userSettings.priorityFee));
+			if (!validPriorityFee) {
+				console.log(
+					"Invalid priority fee found in user data. Please re-enter.",
+				);
+				userSettings.priorityFee = null; // Reset spread percentage
+			} else validPriorityFee = true;
+		}
+		
+		// If spread percentage is not valid, prompt the user
+		while (!validPriorityFee) {
+			const priorityFeeInput = await questionAsync(
+				"What Priority Fee do you want to use? (Micro Lamports - 1000 = 0.000001000 SOL: ",
+			);
+			priorityFee = parseFloat(priorityFeeInput);
+			if (!isNaN(priorityFee)) {
+				userSettings.priorityFee = priorityFee;
+				validPriorityFee = true;
+			} else {
+				console.log(
+					"Invalid Priority Fee. Please enter a valid number.",
+				);
+			}
+		}
+
 		while (!validMonitorDelay) {
 			const monitorDelayQuestion = await questionAsync(
 				`Enter the delay between price checks in milliseconds (minimum 5000ms): `,
@@ -616,84 +642,81 @@ async function initialize() {
 		}
 
 		spreadbps = spread * 100;
-		// Calculate trade size in lamports based on the token
-		if (selectedTradeToken.toLowerCase() === "a") {
-			tradeSizeInLamports = tradeSize * Math.pow(10, selectedDecimalsA);
-
-			console.log(
-				`Your Token Selection for A - Symbol: ${selectedTokenA}, Address: ${selectedAddressA}`,
-			);
-			console.log(
-				`Your Token Selection for B - Symbol: ${selectedTokenB}, Address: ${selectedAddressB}`,
-			);
-			console.log(
-				`Order Size for Token A: ${tradeSize} ${selectedTokenA}`,
-			);
-			console.log(`Order Spread Percentage: ${spread}`);
-		}
 		rl.close(); // Close the readline interface after question loops are done.
-
+		
+		saveuserSettings(
+			selectedTokenA,
+			selectedAddressA,
+			selectedDecimalsA,
+			selectedTokenB,
+			selectedAddressB,
+			selectedDecimalsB,
+			tradeSize,
+			spread,
+			priorityFee,
+			rebalanceAllowed,
+			rebalancePercentage,
+			rebalanceSlippageBPS,
+			monitorDelay,
+			stopLossUSD,
+			infinityTarget,
+			infinityMode,
+		);
 		//First Price check during init
-		try {
-			const queryParams = {
-				inputMint: selectedAddressA,
-				outputMint: selectedAddressB,
-				amount: tradeSizeInLamports,
-				slippageBps: 0,
-			};
-			const response = await axios.get(quoteurl, { params: queryParams });
-			//console.log(`Response for ${selectedTokenA} vs ${selectedTokenB}:`, response.data);
 
-			newPrice = response.data.outAmount;
-			startPrice = response.data.outAmount;
-			const layers = generatePriceLayers(startPrice, spreadbps, 500);
-			//Calc first price layers
-			buyInput = tradeSizeInLamports;
-
-			sellInput = layers[1];
-			buyOutput = layers[-1];
-
-			//Get Lamports for Sell Output
-			sellOutput = tradeSizeInLamports;
-
-			saveuserSettings(
-				selectedTokenA,
-				selectedAddressA,
-				selectedDecimalsA,
-				selectedTokenB,
-				selectedAddressB,
-				selectedDecimalsB,
-				tradeSize,
-				spread,
-				priorityFee,
-				rebalanceAllowed,
-				rebalancePercentage,
-				rebalanceSlippageBPS,
-				monitorDelay,
-				stopLossUSD,
-				infinityTarget,
-			);
-			console.clear();
-			console.log(`\n\u{1F680} Starting Jupgrid! Version ${version}`);
-
-			if (!infinityMode) {
-				console.log("Starting Grid Mode");
-				startGrid();
+			if (infinityMode) {
+				//console.clear();
+				console.log("Starting JupGrid Infinity Mode");
+				console.log(
+					`Your Token Selection for A - Symbol: ${selectedTokenA}, Address: ${selectedAddressA}`,
+				);
+				console.log(
+					`Your Token Selection for B - Symbol: ${selectedTokenB}, Address: ${selectedAddressB}`,
+				);
+				tradeSizeInLamports = (1 * Math.pow(10, selectedDecimalsB))
+				const queryParams = {
+					inputMint: selectedAddressB,
+					outputMint: selectedAddressA,
+					amount: tradeSizeInLamports,
+					slippageBps: 0,
+				};
+				const response = await axios.get(quoteurl, { params: queryParams });
+				
+				newPrice = response.data.outAmount / Math.pow(10, selectedDecimalsA); 
+				startPrice = response.data.outAmount / Math.pow(10, selectedDecimalsA);
+				startInfinity();
 			} else {
-				console.log("Infinity Mode is currently disabled. Please check back later.")
-				process.exit(0);
+			try {
+				tradeSizeInLamports = tradeSize * Math.pow(10, selectedDecimalsA);
+				const queryParams = {
+					inputMint: selectedAddressA,
+					outputMint: selectedAddressB,
+					amount: tradeSizeInLamports,
+					slippageBps: 0,
+				};
+				const response = await axios.get(quoteurl, { params: queryParams });
+				newPrice = response.data.outAmount; 
+				startPrice = response.data.outAmount;
+				const layers = generatePriceLayers(startPrice, spreadbps, 500);
+				//Calc first price layers
+				buyInput = tradeSizeInLamports;
 
-				//console.log("Starting Infinity Mode");
-				//startInfinity();
+				sellInput = layers[1];
+				buyOutput = layers[-1];
+
+				//Get Lamports for Sell Output
+				sellOutput = tradeSizeInLamports;
+
+				//console.clear();
+				console.log(`\n\u{1F680} Starting Jupgrid! Version ${version}`);
+				startGrid();
+				
+			} catch (error) {
+				console.error("Error: Connection or Token Data Error");
+				console.error("Error:", error);
+				return null; // Return null on error
 			}
-		} catch (error) {
-			console.error("Error: Connection or Token Data Error");
-			console.error("Error:", error);
-			return null; // Return null on error
 		}
-	} catch (error) {
-		console.error(error);
-	}
 }
 
 if (loaded === false) {
@@ -738,12 +761,24 @@ async function startGrid() {
 async function startInfinity() {
 	//Balance check and rebalance to start
 	//await balanceCheck();
+	let initialBalances = await getBalance(
+		wallet,
+		selectedAddressA,
+		selectedAddressB,
+		selectedTokenA,
+		selectedTokenB,
+	);
+	initBalanceA = initialBalances.balanceA;
+	initUsdBalanceA = initialBalances.usdBalanceA;
+	initBalanceB = initialBalances.balanceB;
+	initUsdBalanceB = initialBalances.usdBalanceB;
+	initUsdTotalBalance = initUsdBalanceA + initUsdBalanceB;
 	infinityGrid();
 }
 
 function generatePriceLayers(newPrice, spreadbps, totalLayers) {
 	const layers = {};
-	const adjustment = (newPrice * spreadbps) / 10000; // Fixed adjustment value
+	const adjustment = newPrice * spreadbps / 10000; // Fixed adjustment value
 
 	for (let i = 1; i <= totalLayers; i++) {
 		const upperLayerPrice = Math.trunc(Number(newPrice) - adjustment * i);
@@ -922,16 +957,16 @@ function formatElapsedTime(startTime) {
 	minutes = String(minutes).padStart(2, "0");
 	seconds = String(seconds).padStart(2, "0");
 
-	console.log(`Run time: ${hours}:${minutes}:${seconds}`);
+	console.log(`\u{23F1}  Run time: ${hours}:${minutes}:${seconds}`);
 }
 
 async function infinityGrid() {
-	console.log("Infinity Grid Mode is currently disabled. Please check back later.")
-	process.exit(0);
+	//console.log("Infinity Grid Mode is currently disabled. Please check back later.")
+	//process.exit(0);
 
 	if (shutDown) return;
 	if (infinityInit) {
-	//await balanceCheck(); //Rebalance TokenB to Infinity Target to start
+	await balanceCheck(); //Rebalance TokenB to Infinity Target to start
 	infinityInit = false; //Disable rebalance function after 1st run
 	}
 
@@ -953,9 +988,12 @@ async function infinityGrid() {
 
 	if (currUsdTotalBalance < stopLossUSD) {
 		//Emergency Stop Loss
+		console.clear();
 		console.log(
-			`\n\u{1F6A8} Emergency Stop Loss Triggered! - Cashing out and Exiting`,
+			`\n\u{1F6A8} Emergency Stop Loss Triggered! - Exiting`,
 		);
+		stopLoss = true;
+		cancelOrder();
 		process.kill(process.pid, 'SIGINT');
 	}
 	// Calculate the new prices of tokenB when it's up 1% and down 1%
@@ -985,7 +1023,7 @@ async function infinityGrid() {
 	console.log(`Amount of ${selectedTokenA} to send: `, marketDownIn);
 	console.log("Calculated Market Price: ", marketDownCalc);
 
-	/*
+	
 //Buy layer
 let buyOrder = await sendTx(
 	Math.floor(marketDownIn * Math.pow(10, selectedDecimalsA)),
@@ -1014,7 +1052,7 @@ console.log(
 	await delay(5000)
 );
 monitorPrice()
-*/
+
 }
 
 async function monitorPrice(
@@ -1051,7 +1089,9 @@ async function monitorPrice(
 						"No orders found. Resetting and placing orders at last known layers.",
 					);
 					if (infinityMode){
+						console.log("Start of Monitor Price")
 						infinityGrid()
+						return
 					} else {
 					await setOrders();
 					}
@@ -1179,13 +1219,25 @@ async function updateUSDVal(mintAddress, balance, decimals) {
 }
 
 async function updateMainDisplay() {
-	console.clear();
+	//console.clear();
 	console.log(`Jupgrid v${version}`);
+	if (infinityMode) {
+		console.log(`\u{267E}  Infinity Mode`);
+	} else {
+		console.log(`\u{1F680} Classic Grid Mode`);
+	}
+	console.log(`\u{1F4B0} Wallet: ${displayAddress}`);
 	formatElapsedTime(startTime);
-	console.log(
-		`Settings: ${chalk.cyan(selectedTokenA)}/${chalk.magenta(selectedTokenB)} - Spread: ${spread}%`,
-	);
 	console.log(`-`);
+	if (infinityMode) {
+		console.log(
+			`\u{1F527} Settings: ${chalk.cyan(selectedTokenA)}/${chalk.magenta(selectedTokenB)}\n\u{1F3AF} ${selectedTokenB} Target Value: $${infinityTarget}\n\u{1F6A8} Stop Loss at $${stopLossUSD}`,
+		);
+	} else {
+	console.log(
+		`\u{1F527} Settings: ${chalk.cyan(selectedTokenA)}/${chalk.magenta(selectedTokenB)} -\n\u{2195} Spread: ${spread}%`,
+	);
+	}
 
 	try {
 		// Attempt to fetch the new USD values
@@ -1203,10 +1255,22 @@ async function updateMainDisplay() {
 		currUSDBalanceA = tempUSDBalanceA ?? currUSDBalanceA; // Fallback to current value if undefined
 		currUSDBalanceB = tempUSDBalanceB ?? currUSDBalanceB; // Fallback to current value if undefined
 		currUsdTotalBalance = currUSDBalanceA + currUSDBalanceB; // Recalculate total
+
+		newPrice = currUSDBalanceB / currBalanceB; // Current price of token B
 	} catch (error) {
 		//Error is not critical. Reuse the previous balances and try another update again next cycle.
 	}
-
+	if (currUsdTotalBalance < stopLossUSD) {
+		//Emergency Stop Loss
+		console.clear();
+		console.log(
+			`\n\u{1F6A8} Emergency Stop Loss Triggered! - Cashing out and Exiting`,
+		);
+		stopLoss = true;
+		cancelOrder();
+		process.kill(process.pid, 'SIGINT');
+	}
+	console.log(`-`);
 	console.log(`Starting Balance : $${initUsdTotalBalance.toFixed(2)}`);
 	console.log(`Current Balance  : $${currUsdTotalBalance.toFixed(2)}`);
 	let profitOrLoss = currUsdTotalBalance - initUsdTotalBalance;
@@ -1222,6 +1286,8 @@ async function updateMainDisplay() {
 	} else {
 		console.log(`Difference : $${profitOrLoss.toFixed(2)} (0.00%)`); // Neutral
 	}
+	console.log(`Market Change: ${(((newPrice - startPrice) / startPrice) * 100).toFixed(2)}%`);
+	console.log(`Performance Delta: ${(percentageChange - ((newPrice - startPrice) / startPrice) * 100).toFixed(2)}%`);
 	console.log(`-`);
 
 	console.log(
@@ -1609,7 +1675,8 @@ async function checkOpenOrders() {
 async function cancelOrder(checkArray) {
 	if (checkArray.length === 0) {
 		if (infinityMode){
-			cancelOrder(checkArray)
+			console.log("Start of cancel order")
+			infinityGrid();
 			return;
 		} else {
 		setOrders();
@@ -1642,7 +1709,9 @@ async function cancelOrder(checkArray) {
 			if (checkArray.length === 0) {
 				spinner.succeed("No open orders found, resetting.");
 				if (infinityMode){
+					console.log("middle of cancel order")
 					infinityGrid();
+					return
 				} else {
 				setOrders();
 				}
@@ -1694,13 +1763,18 @@ async function cancelOrder(checkArray) {
 
 			spinner.succeed(`Cancellation Transaction Confirmed: ${txid}`);
 			console.log(`Transaction Receipt: https://solscan.io/tx/${txid}`);
-			if (infinityMode){
-				infinityGrid();
+			if (stopLoss === false) {
+				if (infinityMode){
+					infinityGrid();
+					return
+				} else {
+				await balanceCheck();
+				setOrders(); // Calls setOrders and exits if successful
+				return;
+				} 
 			} else {
-			await balanceCheck();
-			setOrders(); // Calls setOrders and exits if successful
-			return;
-			} // Exit after successful processing
+				return
+			}// Exit after successful processing
 		} catch (error) {
 			spinner.fail(
 				`Attempt ${attempt} failed: ${error.message}, retrying...`,
@@ -1798,7 +1872,7 @@ async function balanceCheck() {
 					Math.pow(10, selectedDecimalsA);
 			}
 			console.log(
-				`Need to sell ${chalk.cyan(rebalanceValue / Math.pow(10, selectedDecimalsA))} ${chalk.cyan(selectedTokenA)} to balance.`,
+				`Need to sell ${chalk.cyan(Math.abs(rebalanceValue / Math.pow(10, selectedDecimalsA)))} ${chalk.cyan(selectedTokenA)} to balance.`,
 			);
 			await rebalanceTokens(
 				selectedAddressA,
@@ -1817,7 +1891,7 @@ async function balanceCheck() {
 				Can;
 			}
 			console.log(
-				`Need to sell ${chalk.magenta(rebalanceValue / Math.pow(10, selectedDecimalsB))} ${chalk.magenta(selectedTokenB)} to balance.`,
+				`Need to sell ${chalk.magenta(Math.abs(rebalanceValue / Math.pow(10, selectedDecimalsB)))} ${chalk.magenta(selectedTokenB)} to balance.`,
 			);
 			await rebalanceTokens(
 				selectedAddressB,
