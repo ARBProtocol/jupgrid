@@ -169,6 +169,9 @@ async function loadQuestion() {
 										`Token B: ${userSettings.selectedTokenB}`,
 									);
 									console.log(
+										`Spread: ${userSettings.spread}%`
+									)	
+									console.log(
 										`Priority Fee: ${userSettings.priorityFee}`,
 									);
 									console.log(
@@ -414,11 +417,12 @@ async function initialize() {
 			}
 		}
 
+		if (!infinityMode){
 		const infinityModeInput = await questionAsync(
 			`Would you like Infinity Mode? (Y/N): `,
 		);
 		infinityMode = infinityModeInput.toLowerCase() === "y";
-		
+		}
 		if (infinityMode) {
 			if (userSettings.infinityTarget) {
 				validInfinityTarget = !isNaN(
@@ -492,9 +496,9 @@ async function initialize() {
 		}
 
 		// If spread percentage is not valid, prompt the user
-		while (!validSpread && !infinityMode) {
+		while (!validSpread) {
 			const spreadInput = await questionAsync(
-				"What % Spread Difference Between Market and Orders? Recommend >0.3% to cover Jupiter Fees, but >1% for better performance:",
+				"What % Spread Difference Between Market and Orders? Recommend >0.3% to cover Jupiter Fees, but 1% or greater for best performance:",
 			);
 			spread = parseFloat(spreadInput);
 			if (!isNaN(spread)) {
@@ -961,8 +965,6 @@ function formatElapsedTime(startTime) {
 }
 
 async function infinityGrid() {
-	//console.log("Infinity Grid Mode is currently disabled. Please check back later.")
-	//process.exit(0);
 
 	if (shutDown) return;
 	if (infinityInit) {
@@ -997,8 +999,8 @@ async function infinityGrid() {
 		process.kill(process.pid, 'SIGINT');
 	}
 	// Calculate the new prices of tokenB when it's up 1% and down 1%
-	let newPriceBUp = tokenBPrice * 1.01; // 1% increase
-	let newPriceBDown = tokenBPrice * 0.99; // 1% decrease
+	let newPriceBUp = tokenBPrice * (1 + spreadbps / 10000); // *1.01 1% increase
+	let newPriceBDown = tokenBPrice * (1 - spreadbps / 10000); // *0.99 1% decrease
 
 	let marketUpIn = (currBalanceB * newPriceBUp - infinityTarget) / newPriceBUp; // USD Output, then Div by price to get lamports
 	let marketUpOut = marketUpIn * newPriceBUp; //Lamports * Price to get USD Input
@@ -1008,7 +1010,7 @@ async function infinityGrid() {
 	console.log(`Infinity Target: ${infinityTarget}`);
 	console.log(`Current ${selectedTokenB} Balance: ${currBalanceB} (${currUSDBalanceB.toFixed(2)})`);
 
-	console.log(`\n${selectedTokenB} up 1%: ${newPriceBUp}`);
+	console.log(`\n${selectedTokenB} up ${spread}%: ${newPriceBUp}`);
 	console.log(`Amount of ${selectedTokenB} to send: `, marketUpIn);
 	console.log(`Amount of ${selectedTokenA} to receive: `, marketUpOut);
 	console.log("Calculated Market Price: ", marketUpCalc);
@@ -1018,11 +1020,10 @@ async function infinityGrid() {
 	let marketDownIn = marketDownOut * newPriceBDown; //Lamports * Price to get USD Input
 	let marketDownCalc = marketDownIn / marketDownOut; //Calculated Market Price for extra checking
 
-	console.log(`\n${selectedTokenB} down 1%: ${newPriceBDown}`);
+	console.log(`\n${selectedTokenB} down ${spread}%: ${newPriceBDown}`);
 	console.log(`Amount of ${selectedTokenB} to recieve: `, marketDownOut);
 	console.log(`Amount of ${selectedTokenA} to send: `, marketDownIn);
 	console.log("Calculated Market Price: ", marketDownCalc);
-
 	
 //Buy layer
 let buyOrder = await sendTx(
@@ -1827,7 +1828,7 @@ async function balanceCheck() {
 		infinityMode
 	) {
 		if (infinityMode) {
-			if (!currUsdTotalBalance > infinityTarget) {
+			if (currUsdTotalBalance < infinityTarget) {
 				console.log(
 					`Your total balance is not high enough for your Infinity Target. Please either increase your wallet balance or reduce your target.`,
 				);
