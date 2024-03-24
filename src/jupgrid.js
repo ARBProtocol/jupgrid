@@ -665,7 +665,7 @@ async function initialize() {
 		//First Price check during init
 
 			if (infinityMode) {
-				//console.clear();
+				console.clear();
 				console.log("Starting JupGrid Infinity Mode");
 				console.log(
 					`Your Token Selection for A - Symbol: ${selectedTokenA}, Address: ${selectedAddressA}`,
@@ -707,7 +707,7 @@ async function initialize() {
 				//Get Lamports for Sell Output
 				sellOutput = tradeSizeInLamports;
 
-				//console.clear();
+				console.clear();
 				console.log(`\n\u{1F680} Starting Jupgrid! Version ${version}`);
 				startGrid();
 				
@@ -1219,7 +1219,7 @@ async function updateUSDVal(mintAddress, balance, decimals) {
 }
 
 async function updateMainDisplay() {
-	//console.clear();
+	console.clear();
 	console.log(`Jupgrid v${version}`);
 	if (infinityMode) {
 		console.log(`\u{267E}  Infinity Mode`);
@@ -1917,7 +1917,7 @@ async function balanceCheck() {
 }
 
 process.on("SIGINT", () => {
-	//console.clear();
+	console.clear();
 	console.log("CTRL+C detected! Performing cleanup...");
 	shutDown = true;
 
