@@ -1,4 +1,4 @@
-## Jupgrid: Decentralized Grid Trading Bot Version 0.3.2 Alpha
+## Jupgrid: Decentralized Grid Trading Bot Version 0.3.3 Alpha (Infinity)
 
 =======
 

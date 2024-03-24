@@ -1441,7 +1441,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 	let attempt = 0;
 
 	let blockHeightErrorOccurred = false; // This flag resets with each function call
-
+	let transactionID = null;
 	while (attempt < maxRetries) {
 		attempt++;
 		try {
@@ -1544,7 +1544,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 			console.log(`https://solscan.io/tx/${txid}`);
 			console.log("Order Successful");
 			await delay(2000);
-
+			transactionID = responseData.orderPubkey;
 			return {
 				txid,
 				orderPubkey: responseData.orderPubkey,
@@ -1562,7 +1562,7 @@ async function sendTx(inAmount, outAmount, inputMint, outputMint, base) {
 
 				// Return as if successful
 				return {
-					orderPubkey: responseData.orderPubkey,
+					orderPubkey: transactionID,
 				};
 			} else if (
 				error.message.toLowerCase().includes("block height exceeded")
