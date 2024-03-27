@@ -1006,24 +1006,24 @@ async function infinityGrid() {
 	let marketUpOut = marketUpIn * newPriceBUp; //Lamports * Price to get USD Input
 	let marketUpCalc = marketUpOut / marketUpIn; //Calculated Market Price for extra checking
 
-	console.log("Current Market Price: ", tokenBPrice);
+	console.log("Current Market Price: ", tokenBPrice.toFixed(5));
 	console.log(`Infinity Target: ${infinityTarget}`);
 	console.log(`Current ${selectedTokenB} Balance: ${currBalanceB} (${currUSDBalanceB.toFixed(2)})`);
 
-	console.log(`\n${selectedTokenB} up ${spread}%: ${newPriceBUp}`);
-	console.log(`Amount of ${selectedTokenB} to send: `, marketUpIn);
-	console.log(`Amount of ${selectedTokenA} to receive: `, marketUpOut);
-	console.log("Calculated Market Price: ", marketUpCalc);
+	console.log(`\n${selectedTokenB} up ${spread}%: ${newPriceBUp.toFixed(5)}`);
+	console.log(`Amount of ${selectedTokenB} to send: `, marketUpIn.toFixed(5));
+	console.log(`Amount of ${selectedTokenA} to receive: `, marketUpOut.toFixed(5));
+	console.log("Calculated Market Price: ", marketUpCalc.toFixed(5));
 
 	// Calculate the amount of tokenB to buy to maintain the target USD value
 	let marketDownOut = (infinityTarget - currBalanceB * newPriceBDown) / newPriceBDown; // USD Output, then Div by price to get lamports
 	let marketDownIn = marketDownOut * newPriceBDown; //Lamports * Price to get USD Input
 	let marketDownCalc = marketDownIn / marketDownOut; //Calculated Market Price for extra checking
 
-	console.log(`\n${selectedTokenB} down ${spread}%: ${newPriceBDown}`);
-	console.log(`Amount of ${selectedTokenB} to recieve: `, marketDownOut);
-	console.log(`Amount of ${selectedTokenA} to send: `, marketDownIn);
-	console.log("Calculated Market Price: ", marketDownCalc);
+	console.log(`\n${selectedTokenB} down ${spread}%: ${newPriceBDown.toFixed(5)}`);
+	console.log(`Amount of ${selectedTokenB} to recieve: `, marketDownOut.toFixed(5));
+	console.log(`Amount of ${selectedTokenA} to send: `, marketDownIn.toFixed(5));
+	console.log("Calculated Market Price: ", marketDownCalc.toFixed(5));
 	
 //Buy layer
 let buyOrder = await sendTx(
@@ -1388,6 +1388,12 @@ async function setOrders() {
 	try {
 		// Send the "buy" transactions
 		if (shutDown) return;
+		if (buyInput >= currBalanceA * Math.pow(10, selectedDecimalsA)) {
+			console.log(`\u{1F6A8} Insufficient ${selectedTokenA} balance to place buy order.`);
+			console.log(`Balance: ${currBalanceA}. Required: ${buyInput / Math.pow(10, selectedDecimalsA)}`);
+			console.log("Please balance your tokens and try again. Exiting...");
+			process.exit(0);
+		}
 		console.log("\u{1F4C9} Placing Buy Layer");
 		const buyOrder = await sendTransactionAsync(
 			buyInput,
@@ -1402,6 +1408,12 @@ async function setOrders() {
 
 		// Send the "sell" transaction
 		if (shutDown) return;
+		if (sellInput >= currBalanceB * Math.pow(10, selectedDecimalsB)) {
+			console.log(`\u{1F6A8} Insufficient ${selectedTokenB} balance to place buy order.`);
+			console.log(`Balance: ${currBalanceB}. Required: ${sellInput / Math.pow(10, selectedDecimalsB)}`);
+			console.log("Please balance tokens and try again. Exiting...");
+			process.exit(0);
+		}
 		console.log("\u{1F4C8} Placing Sell Layer");
 		const sellOrder = await sendTransactionAsync(
 			sellInput,
